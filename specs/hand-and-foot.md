@@ -58,8 +58,8 @@ pile. The dealer rotates each round; the player after the dealer starts.
 
 **Melds and piles.** Each player has their own piles; a player has at most
 one pile per rank (4–K, A) for the whole round. A new pile needs at least 3
-cards, at least 2 of them natural. In every pile, naturals must outnumber
-wilds (strictly more naturals than wilds) after every play. 3s can never be
+cards, at least 2 of them natural. In every pile, wilds may never outnumber
+naturals (equal numbers are fine) after every play. 3s can never be
 melded. A pile of 7+ cards is a book: clean if it has no wilds, dirty
 otherwise. A wild may be added to a clean book, which makes it dirty. Wild-only piles are not
 allowed. Cards are only ever melded onto your own piles.

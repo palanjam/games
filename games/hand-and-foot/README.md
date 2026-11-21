@@ -21,7 +21,7 @@ scoreboard. The full rules and the view contract are in
     (with cards from your hand, or onto your pile of its rank).
 - **Piles and books.** You build your own piles, one per rank (4s through
   Aces) for the whole round. A new pile needs 3 cards, at least 2 of them
-  natural; naturals must always outnumber wilds. 3s are never melded. A pile
+  natural; wilds may never outnumber naturals (equal is fine). 3s are never melded. A pile
   of 7 or more is a book: clean with no wilds, dirty with any. Adding a wild
   to a clean book is allowed and makes it dirty. A pile keeps growing past 7
   and is still one book.
@@ -59,7 +59,7 @@ was decided for this implementation:
   afterwards. The pile can only be taken with at least 5 cards in it.
 - The opening minimum counts every card in the first batch (a `meld` or a
   pickup), including the picked-up top card.
-- New piles: 3+ cards with 2+ naturals; strictly more naturals than wilds
+- New piles: 3+ cards with 2+ naturals; at least as many naturals as wilds
   in every pile after every play; no wild-only piles; melds only on your own
   piles.
 - Book bonuses are one per pile regardless of size: 500 clean, 300 dirty;

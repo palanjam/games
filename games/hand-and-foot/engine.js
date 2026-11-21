@@ -369,7 +369,7 @@ export class Game {
       }
       const pile = [...(existing ?? []), ...cards];
       const pileWilds = pile.filter(isWild).length;
-      if (pile.length - pileWilds <= pileWilds) throw new GameError(`Your ${label} need more natural cards than wild cards.`);
+      if (pile.length - pileWilds < pileWilds) throw new GameError(`Your ${label} can't have more wild cards than natural cards.`);
       piles.set(rank, pile);
       entries.push({ rank, cards });
       total += sumValues(cards);
