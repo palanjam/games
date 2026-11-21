@@ -443,7 +443,9 @@ export class Game {
     }
     p.hand = p.hand.filter((c) => c !== card);
     this.discard.push(card);
-    this.addLog(`${p.name} discarded the ${cardName(card)}.`);
+    // The card is not named: only the top discard is visible, so players must
+    // remember what lies under it.
+    this.addLog(`${p.name} discarded.`);
     if (last && p.inFoot) {
       this.outId = p.id;
       this.addLog(`${p.name} goes out!`);

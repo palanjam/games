@@ -243,6 +243,10 @@ test('the discard pile keeps discard order: a pickup takes the last 5 discards, 
     g.discardCard(pid, idOf(g, pid, name));
   }
   assert.equal(names(g.discard), `8♣ ${order.join(' ')}`);
+  // The log says who discarded, never which card.
+  const logged = g.log.map((l) => l.text).join('\n');
+  assert.ok(logged.includes(' discarded.'));
+  for (const name of order) assert.ok(!logged.includes(name), `log names ${name}`);
 
   const pid = g.turnId;
   arrange(g, { players: { [pid]: { hand: 'K♥ K♦ 4♠' } } });
