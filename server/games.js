@@ -8,5 +8,6 @@
 // view(null) is what the shared table screen sees. Rule violations throw
 // GameError (server/game-error.js).
 import flip7 from '../games/flip7/index.js';
+import coverYourAssets from '../games/cover-your-assets/index.js';
 
-export const games = new Map([flip7].map((g) => [g.id, g]));
+export const games = new Map([flip7, coverYourAssets].map((g) => [g.id, g]));

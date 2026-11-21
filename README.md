@@ -8,7 +8,7 @@ Games:
 
 - **[Flip 7](games/flip7/README.md)**: push-your-luck number flipping,
   first to 200 (2–12 players).
-- **[Cover Your Assets](specs/cover-your-assets.md)**: collect and steal
+- **[Cover Your Assets](games/cover-your-assets/README.md)**: collect and steal
   sets of assets, first to $1,000,000 or a one-round quick game (2–6
   players). Classic rules; card values are in
   `games/cover-your-assets/engine.js`.

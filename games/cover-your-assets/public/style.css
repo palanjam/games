@@ -1,0 +1,175 @@
+:root {
+  --bg: #0b2a1b;
+  --bg-2: #12402a;
+  --panel: #17492f;
+  --line: #2b6a47;
+  --ink: #f7f1dc;
+  --muted: #9fc7ac;
+  --accent: #e9b824;
+  --danger: #e5533d;
+  --ok: #5fd38d;
+  --cream: #fbf5e0;
+  --cw: 64px; /* card width; everything on a card scales from it */
+  font-family: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: radial-gradient(ellipse at top, var(--bg-2), var(--bg) 70%) fixed;
+  -webkit-tap-highlight-color: transparent;
+}
+h1, h2, h3 { margin: 0; }
+
+button {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  min-height: 44px;
+  cursor: pointer;
+  color: #2b1d00;
+  background: var(--accent);
+  touch-action: manipulation;
+}
+button:active { transform: scale(0.97); }
+button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+button:disabled { opacity: 0.4; pointer-events: none; }
+
+input {
+  font: inherit;
+  font-size: 1.2rem;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  width: 100%;
+}
+input:focus { outline: none; border-color: var(--accent); }
+
+.logo { font-weight: 900; letter-spacing: 0.02em; font-size: 2rem; color: var(--cream); line-height: 1.05; }
+.logo span { color: var(--accent); }
+.muted { color: var(--muted); }
+.code { color: var(--accent); letter-spacing: 0.1em; }
+a { color: var(--accent); }
+.spacer { flex: 1; }
+
+.badge {
+  display: inline-block;
+  font-size: 0.7em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--ink);
+  vertical-align: middle;
+}
+.badge.dealer { background: var(--cream); color: #333; }
+.badge.offline { background: #555; color: #ddd; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 150%);
+  background: var(--danger);
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 18px;
+  border-radius: 12px;
+  transition: transform 0.25s;
+  z-index: 100;
+  max-width: calc(100% - 32px);
+}
+.toast.show { transform: translate(-50%, 0); }
+
+/* ---- cards -------------------------------------------------------------- */
+
+.card {
+  --c: #555;
+  --tint: #fff;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  flex: none;
+  width: var(--cw);
+  aspect-ratio: 5 / 7;
+  padding: calc(var(--cw) * 0.06);
+  border: calc(var(--cw) * 0.045) solid var(--c);
+  border-radius: calc(var(--cw) * 0.12);
+  background: linear-gradient(170deg, var(--tint), var(--cream) 60%);
+  color: var(--c);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  text-align: left;
+  line-height: 1;
+  user-select: none;
+}
+.card .ic { font-size: calc(var(--cw) * 0.3); line-height: 1; }
+.card .nm {
+  margin-top: calc(var(--cw) * 0.05);
+  font-size: max(8px, calc(var(--cw) * 0.14));
+  font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: #3a3a3a;
+  overflow: hidden;
+}
+.card .val {
+  margin-top: auto;
+  align-self: flex-end;
+  font-size: max(9px, calc(var(--cw) * 0.24));
+  font-weight: 900;
+}
+
+.a-baseball { --c: #c62828; --tint: #fde1de; }
+.a-coins { --c: #9a7400; --tint: #fff1c4; }
+.a-piggy { --c: #d81b60; --tint: #fde0ec; }
+.a-cash { --c: #2e7d32; --tint: #dff3e0; }
+.a-bank { --c: #3949ab; --tint: #e0e4fa; }
+.a-stocks { --c: #00897b; --tint: #d9f3ef; }
+.a-boat { --c: #0277bd; --tint: #dcf0fb; }
+.a-jewels { --c: #8e24aa; --tint: #f2dff7; }
+.a-auto { --c: #e64a19; --tint: #fde5dc; }
+.a-home { --c: #6d4c41; --tint: #efe3dd; }
+
+/* Wilds look like metal, not paper, so they never read as an ordinary asset. */
+.card.wild { border-style: double; border-width: calc(var(--cw) * 0.07); }
+.card.wild .nm { color: inherit; }
+.card.wild .nm::after { content: ' \2605'; }
+.card.a-silver { --c: #5d6a75; background: linear-gradient(135deg, #fafbfc, #b7c0c8 45%, #f1f3f5 70%, #a9b3bb); }
+.card.a-gold {
+  --c: #7a5300;
+  background: linear-gradient(135deg, #fff6c2, #e5ae00 45%, #fff0a0 70%, #d49a00);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 0 14px rgba(255, 210, 80, 0.55);
+}
+
+.card.back {
+  --c: var(--cream);
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(45deg, #1d6b43, #1d6b43 6px, #175a37 6px, #175a37 12px);
+  color: var(--accent);
+  font-size: calc(var(--cw) * 0.5);
+}
+.card.empty { background: transparent; border: 2px dashed var(--line); box-shadow: none; }
+
+/* A set is overlapping cards (wilds underneath); a stack is its sets bottom
+   to top, left to right, with the top (stealable) set drawn large. */
+.set { --cw: var(--cw-low, 36px); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.set.top { --cw: var(--cw-top, 60px); }
+.set .cards { display: flex; }
+.set .cards .card + .card { margin-left: calc(var(--cw) * -1 * min(0.82, 0.4 + 0.06 * var(--n, 3))); } /* big sets fan tighter */
+.set .sval { font-size: max(10px, calc(var(--cw) * 0.24)); font-weight: 800; color: var(--muted); }
+.set.top .sval { color: var(--accent); }
+.set:not(.top) .nm { display: none; }
+.stack { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.nostack { font-size: 0.9rem; }
+
+.cardbtn { background: none; padding: 0; min-height: 0; border-radius: calc(var(--cw) * 0.14); line-height: 0; transition: transform 0.12s; }
+.cardbtn:disabled { opacity: 1; }
