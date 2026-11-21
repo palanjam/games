@@ -9,5 +9,6 @@
 // GameError (server/game-error.js).
 import flip7 from '../games/flip7/index.js';
 import coverYourAssets from '../games/cover-your-assets/index.js';
+import fiveCrowns from '../games/five-crowns/index.js';
 
-export const games = new Map([flip7, coverYourAssets].map((g) => [g.id, g]));
+export const games = new Map([flip7, coverYourAssets, fiveCrowns].map((g) => [g.id, g]));

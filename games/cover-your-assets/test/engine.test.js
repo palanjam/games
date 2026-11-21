@@ -462,7 +462,7 @@ test('autoplay discards the lowest card for an offline player, or folds a battle
 });
 
 test('descriptor is registered after Flip 7 with every action', () => {
-  assert.deepEqual([...games.keys()], ['flip7', 'cover-your-assets']);
+  assert.deepEqual([...games.keys()].slice(0, 2), ['flip7', 'cover-your-assets']);
   assert.equal(cya.minPlayers, 2);
   assert.equal(cya.maxPlayers, 6);
   for (const a of ['setMode', 'pair', 'pairDiscard', 'discard', 'challenge', 'respond', 'fold', 'nextRound', 'autoplay']) {

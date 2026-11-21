@@ -12,6 +12,9 @@ Games:
   sets of assets, first to $1,000,000 or a one-round quick game (2–6
   players). Classic rules; card values are in
   `games/cover-your-assets/engine.js`.
+- **[Five Crowns](games/five-crowns/README.md)**: rummy with five suits
+  and a wild card that changes every round; lowest score after 11 rounds
+  wins (2–7 players).
 
 Each game's folder has its own README with its rules and how its engine works.
 
@@ -115,6 +118,7 @@ The contract an engine must meet is documented there.
 server/            index.js (entry), app.js, rooms.js, games.js, game-error.js
 games/flip7/       Flip 7 engine, pages, tests
 games/cover-your-assets/   Cover Your Assets engine, pages, tests
+games/five-crowns/ Five Crowns engine, meld solver, pages, tests
 public/            home page, lib/room.js
 test/              server integration tests
 specs/             per-feature specs
