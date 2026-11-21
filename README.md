@@ -15,6 +15,10 @@ Games:
 - **[Five Crowns](games/five-crowns/README.md)**: rummy with five suits
   and a wild card that changes every round; lowest score after 11 rounds
   wins (2–7 players).
+- **[Hand and Foot](games/hand-and-foot/README.md)**: canasta-style rummy,
+  every player for themselves: play your hand, then your foot, and go out
+  with 2 clean books and 1 dirty; highest score after 4 rounds wins (2–6
+  players).
 
 Each game's folder has its own README with its rules and how its engine works.
 
@@ -119,6 +123,7 @@ server/            index.js (entry), app.js, rooms.js, games.js, game-error.js
 games/flip7/       Flip 7 engine, pages, tests
 games/cover-your-assets/   Cover Your Assets engine, pages, tests
 games/five-crowns/ Five Crowns engine, meld solver, pages, tests
+games/hand-and-foot/       Hand and Foot engine, pages, tests
 public/            home page, lib/room.js
 test/              server integration tests
 specs/             per-feature specs
