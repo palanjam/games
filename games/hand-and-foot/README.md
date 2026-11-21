@@ -54,7 +54,7 @@ was decided for this implementation:
   even if it is a 3 or wild (it simply blocks the pile).
 - Taking from the discard pile is one action carrying the meld batch: only
   the top card may be used in it; the other taken cards join your hand
-  afterwards. If fewer than 5 cards are there you take them all.
+  afterwards. The pile can only be taken with at least 5 cards in it.
 - The opening minimum counts every card in the first batch (a `meld` or a
   pickup), including the picked-up top card.
 - New piles: 3+ cards with 2+ naturals; strictly more naturals than wilds

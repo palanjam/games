@@ -124,7 +124,7 @@ test('deal: 11-card hands then 11-card feet left of the dealer, one card turned 
   assert.equal(v.turnId, 'B');
   assert.equal(v.stage, 'draw');
   assert.equal(cardName(v.discardTop), 'Q♠');
-  assert.equal(v.discardBlocked, false);
+  assert.equal(v.discardBlocked, true); // only 1 card: the pile needs 5 to be taken
   assert.equal(v.stockCount, 3);
   assert.equal(v.discardCount, 1);
 });
@@ -201,7 +201,7 @@ test('choosing an empty stock ends the round with no going-out bonus', () => {
 test('the discard pile is blocked by a 3 (red or black), a wild, or being empty', () => {
   for (const top of ['3♠', '3♣', '3♥', '3♦', '2♣', '2♥', 'JK', null]) {
     const g = setup();
-    arrange(g, { discard: top ? `K♠ ${top}` : '', players: { B: { hand: 'K♥ K♦ 4♠ 4♣ 4♦' } } });
+    arrange(g, { discard: top ? `4♣ 5♣ 6♣ K♠ ${top}` : '', players: { B: { hand: 'K♥ K♦ 4♠ 4♣ 4♦' } } });
     assert.equal(g.view('B').discardBlocked, true, `${top}`);
     assert.throws(() => g.pickup('B', [{ rank: 13, cardIds: idsOf(g, 'B', 'K♥ K♦') }]), GameError, `${top}`);
     assert.equal(g.stage, 'draw');
@@ -255,25 +255,31 @@ test('the discard pile keeps discard order: a pickup takes the last 5 discards, 
   assert.equal(names(g.player(pid).hand), '4♠ Q♥ J♦ Q♦ J♣');
 });
 
-test('a smaller discard pile is taken whole', () => {
+test('the discard pile can only be taken with at least 5 cards in it', () => {
   const g = setup();
-  arrange(g, { discard: '9♣ K♠', players: { B: { hand: 'K♥ 4♠', piles: { 13: 'K♦ K♣ K♥' } } } });
+  arrange(g, { discard: '6♣ 7♣ 9♣ K♠', players: { B: { hand: 'K♥ 4♠', piles: { 13: 'K♦ K♣ K♥' } } } });
+  assert.equal(g.view('B').discardBlocked, true);
+  const before = snapshot(g);
+  assert.throws(() => g.pickup('B', [{ rank: 13, cardIds: [g.discard.at(-1).id] }]), /at least 5 cards/);
+  assert.equal(snapshot(g), before);
+
+  g.discard.unshift(card('5♣'));
+  assert.equal(g.view('B').discardBlocked, false);
   g.pickup('B', [{ rank: 13, cardIds: [g.discard.at(-1).id] }]);
   assert.equal(g.discard.length, 0);
-  assert.equal(g.view(null).discardBlocked, true);
   assert.equal(names(pile(g, 'B', 13).cards), 'K♦ K♣ K♥ K♠');
-  assert.equal(names(g.player('B').hand), 'K♥ 4♠ 9♣');
+  assert.equal(names(g.player('B').hand), 'K♥ 4♠ 5♣ 6♣ 7♣ 9♣');
 });
 
 test('a pickup batch without the top card, or with the cards under it, is refused and changes nothing', () => {
   const g = setup();
   arrange(g, {
-    discard: '9♣ Q♠ K♠',
+    discard: '5♣ 6♣ 9♣ Q♠ K♠',
     players: { B: { hand: 'K♥ K♦ Q♥ Q♦ A♥ A♦ A♣ 4♠', piles: { 5: '5♥ 5♦ 5♣' } } },
   });
   const before = snapshot(g);
   assert.throws(() => g.pickup('B', [entry(g, 'B', 14, 'A♥ A♦ A♣')]), /must meld the K♠/);
-  assert.throws(() => g.pickup('B', [{ rank: 12, cardIds: [...idsOf(g, 'B', 'Q♥ Q♦'), g.discard[1].id] }]), /isn't in your hand/);
+  assert.throws(() => g.pickup('B', [{ rank: 12, cardIds: [...idsOf(g, 'B', 'Q♥ Q♦'), g.discard[3].id] }]), /isn't in your hand/);
   assert.throws(() => g.pickup('B', []), GameError);
   assert.throws(() => g.pickup('B', undefined), GameError);
   assert.equal(snapshot(g), before);
@@ -281,10 +287,10 @@ test('a pickup batch without the top card, or with the cards under it, is refuse
 
 test('the top card may go onto your existing pile of its rank', () => {
   const g = setup();
-  arrange(g, { discard: '4♣ 9♣', players: { B: { hand: 'K♥ 4♠ 5♠', piles: { 9: '9♥ 9♦ 9♠' } } } });
+  arrange(g, { discard: '5♣ 6♣ 7♣ 4♣ 9♣', players: { B: { hand: 'K♥ 4♠ 5♠', piles: { 9: '9♥ 9♦ 9♠' } } } });
   g.pickup('B', [{ rank: 9, cardIds: [g.discard.at(-1).id] }]);
   assert.equal(pile(g, 'B', 9).cards.length, 4);
-  assert.equal(names(g.player('B').hand), 'K♥ 4♠ 5♠ 4♣');
+  assert.equal(names(g.player('B').hand), 'K♥ 4♠ 5♠ 5♣ 6♣ 7♣ 4♣');
 });
 
 // ---- opening ------------------------------------------------------------
@@ -327,7 +333,7 @@ test('opening minimum per round: 50 / 90 / 120 / 150, counting every card in the
 
 test('once opened, small melds are fine; the pickup top card counts toward opening', () => {
   const g = setup();
-  arrange(g, { discard: '4♣ A♠', players: { B: { hand: 'A♥ A♦ K♥ K♦ K♣ 4♠ 5♠', opened: false } } });
+  arrange(g, { discard: '5♣ 6♣ 7♣ 4♣ A♠', players: { B: { hand: 'A♥ A♦ K♥ K♦ K♣ 4♠ 5♠', opened: false } } });
   // A♠ + A♥ + A♦ = 60 >= 50
   g.pickup('B', [{ rank: 14, cardIds: [...idsOf(g, 'B', 'A♥ A♦'), g.discard.at(-1).id] }]);
   assert.equal(g.player('B').opened, true);
@@ -335,9 +341,9 @@ test('once opened, small melds are fine; the pickup top card counts toward openi
   assert.equal(pile(g, 'B', 13).cards.length, 3);
 
   const h = setup();
-  arrange(h, { discard: '4♣ K♠', players: { B: { hand: 'K♥ K♦ 4♠ 5♠', opened: false } } });
+  arrange(h, { discard: '5♣ 6♣ 7♣ 4♣ K♠', players: { B: { hand: 'K♥ K♦ 4♠ 5♠', opened: false } } });
   assert.throws(() => h.pickup('B', [{ rank: 13, cardIds: [...idsOf(h, 'B', 'K♥ K♦'), h.discard.at(-1).id] }]), /at least 50 \(that's 30\)/);
-  assert.equal(h.discard.length, 2);
+  assert.equal(h.discard.length, 5);
 });
 
 // ---- piles --------------------------------------------------------------
@@ -471,10 +477,13 @@ test('discarding your last hand card picks up your foot; you play it next turn',
   assert.equal(names(p.hand), 'Q♥ Q♦ Q♣ 7♠ 6♠ 6♣ 6♦');
 });
 
-test('a pickup whose batch empties the hand picks up the foot too', () => {
+test('a pickup that melds the whole hand keeps the 4 taken cards; melding those picks up the foot', () => {
   const g = setup();
-  arrange(g, { discard: 'A♠', players: { B: { hand: 'A♥ A♦', foot: '7♠ 7♣ 7♦', opened: false } } });
-  g.pickup('B', [{ rank: 14, cardIds: [...idsOf(g, 'B', 'A♥ A♦'), g.discard[0].id] }]);
+  arrange(g, { discard: '5♣ 5♦ 5♠ 5♥ A♠', players: { B: { hand: 'A♥ A♦', foot: '7♠ 7♣ 7♦', opened: false } } });
+  g.pickup('B', [{ rank: 14, cardIds: [...idsOf(g, 'B', 'A♥ A♦'), g.discard.at(-1).id] }]);
+  assert.equal(g.player('B').inFoot, false);
+  assert.equal(names(g.player('B').hand), '5♣ 5♦ 5♠ 5♥');
+  g.meld('B', [entry(g, 'B', 5, '5♣ 5♦ 5♠ 5♥')]);
   assert.equal(g.player('B').inFoot, true);
   assert.equal(names(g.player('B').hand), '7♠ 7♣ 7♦');
   assert.equal(g.stage, 'play');

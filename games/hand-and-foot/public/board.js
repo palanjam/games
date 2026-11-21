@@ -53,7 +53,7 @@ function tableView() {
       <div class="openbox"><small>Opening min</small><b>${state.openingMin}</b></div>
       <div class="pile"><div class="deck">${backHtml()}</div><span>Stock <b>${state.stockCount}</b></span></div>
       <div class="pile">${state.discardTop ? cardHtml(state.discardTop) : '<span class="card empty"></span>'}
-        <span>Discard <b>${state.discardCount}</b>${state.discardTop && state.discardBlocked ? ' <span class="blocked">blocked</span>' : ''}</span></div>
+        <span>Discard <b>${state.discardCount}</b>${state.discardTop && state.discardBlocked ? ` <span class="blocked">${state.discardCount < 5 ? 'under 5' : 'blocked'}</span>` : ''}</span></div>
     </section>
     <section class="grid">${state.players.map(panel).join('')}</section>
     <aside class="side">

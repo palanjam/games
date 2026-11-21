@@ -260,9 +260,11 @@ export class Game {
     return this.discard.at(-1) ?? null;
   }
 
+  // The pile can be taken only with at least 5 cards in it and a natural,
+  // meldable card (not a 3, not a wild) on top.
   get discardBlocked() {
     const top = this.discardTop;
-    return !top || isThree(top) || isWild(top);
+    return this.discard.length < PICKUP_COUNT || isThree(top) || isWild(top);
   }
 
   // ---- turn actions ------------------------------------------------------
@@ -291,8 +293,8 @@ export class Game {
     this.stage = 'play';
   }
 
-  // Take the top 5 of the discard pile (fewer if it is smaller). Not allowed
-  // when the top card is a 3 or a wild. The batch must meld the top card;
+  // Take the top 5 of the discard pile. Not allowed with fewer than 5 cards
+  // in it, or when the top card is a 3 or a wild. The batch must meld the top card;
   // the other cards join the player's cards afterwards.
   pickup(playerId, melds) {
     const p = this.assertTurn(playerId, 'draw');
@@ -300,6 +302,7 @@ export class Game {
     if (!top) throw new GameError('The discard pile is empty.');
     if (isThree(top)) throw new GameError("You can't take the discard pile when a 3 is on top.");
     if (isWild(top)) throw new GameError("You can't take the discard pile when a wild card is on top.");
+    if (this.discard.length < PICKUP_COUNT) throw new GameError(`The discard pile needs at least ${PICKUP_COUNT} cards to take.`);
     const taken = this.discard.slice(-PICKUP_COUNT);
     const others = taken.slice(0, -1);
     const plan = this.planMelds(p, melds, top);

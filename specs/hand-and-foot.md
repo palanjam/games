@@ -48,7 +48,8 @@ pile. The dealer rotates each round; the player after the dealer starts.
   empty when you choose stock, the round ends immediately with no going-out
   bonus.
 - *Take from the discard pile*: only if the top card is not a 3 (red or
-  black) and not a wild. Take the top 5 (fewer if the pile is smaller). This
+  black) and not a wild, and only with at least 5 cards in the pile. Take
+  the top 5. This
   is one atomic action carrying a batch of melds that must include the top
   card, built from it and the player's own cards (the other taken cards are
   unseen until picked up); if the batch is invalid, nothing happens. The

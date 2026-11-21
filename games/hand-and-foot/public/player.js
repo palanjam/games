@@ -198,7 +198,7 @@ function gameView() {
     <section class="table">
       <div class="pile">${backHtml()}<small class="muted">Stock (${state.stockCount})</small></div>
       <div class="pile">${state.discardTop ? cardHtml(state.discardTop) : '<span class="card empty"></span>'}
-        <small class="muted">Discard (${state.discardCount})${state.discardTop && state.discardBlocked ? ' · blocked' : ''}</small></div>
+        <small class="muted">Discard (${state.discardCount})${state.discardTop && state.discardBlocked ? (state.discardCount < 5 ? ' · under 5' : ' · blocked') : ''}</small></div>
     </section>
     ${isMyDraw() && !takeMode ? drawView() : ''}
     ${over ? '' : (isMyPlay() || takeMode) ? batchView(map) : ''}
@@ -233,7 +233,7 @@ function drawView() {
   const blocked = state.discardBlocked || !top;
   return `<section class="draws">
     <button class="big" data-emit="draw" data-arg="{}">Draw 3</button>
-    <button class="big alt" data-act="take" ${blocked ? 'disabled' : ''}>${blocked ? (top ? `Blocked (${esc(cardText(top))})` : 'No discard') : 'Take 5'}</button>
+    <button class="big alt" data-act="take" ${blocked ? 'disabled' : ''}>${blocked ? (!top ? 'No discard' : state.discardCount < 5 ? `Take 5 (only ${state.discardCount})` : `Blocked (${esc(cardText(top))})`) : 'Take 5'}</button>
   </section>`;
 }
 
@@ -308,8 +308,8 @@ function dock(p, map) {
   const you = state.you;
   const mineIds = new Set(you.cards.map((c) => String(c.id)));
   const handUsed = entries.reduce((n, e) => n + e.cardIds.filter((id) => mineIds.has(String(id))).length, 0);
-  // A take-5 also brings the other discards (up to 4) into the hand.
-  const incoming = takeMode ? Math.max(0, Math.min(5, state.discardCount) - 1) : 0;
+  // A take-5 also brings the other 4 discards into the hand.
+  const incoming = takeMode ? 4 : 0;
   const remaining = you.cards.length - handUsed + incoming;
   const canOut = p.canGoOut;
   const canOutAfter = entries.length ? booksReady(p, entries, map) : canOut;
