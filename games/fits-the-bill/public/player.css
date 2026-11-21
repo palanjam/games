@@ -1,0 +1,34 @@
+#app { max-width: 520px; margin: 0 auto; padding: 14px 16px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; }
+.center { text-align: center; display: flex; flex-direction: column; gap: 14px; padding-top: 12vh; align-items: stretch; }
+.names { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.names li { background: var(--panel); border-radius: 999px; padding: 6px 14px; font-weight: 700; }
+.names li.me { outline: 2px solid var(--accent); }
+button.big { font-size: 1.2rem; padding: 14px 18px; }
+.target { display: flex; align-items: center; justify-content: center; gap: 16px; background: var(--panel); border-radius: 16px; padding: 10px; }
+.target b { font-size: 2.2rem; min-width: 2ch; }
+.target small { display: block; color: var(--muted); font-weight: 600; font-size: 0.75rem; }
+.target button { width: 52px; font-size: 1.5rem; padding: 0; }
+
+.top { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--muted); }
+.top b { color: var(--ink); }
+.status { text-align: center; font-weight: 700; font-size: 1.05rem; }
+.status small { display: block; color: var(--muted); font-weight: 500; font-size: 0.85rem; }
+.hand, .subs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.hand button.ans, .subs button.ans { font: inherit; font-weight: 800; font-size: 1.05rem; width: 100%; }
+button.ans { background: var(--paper); color: var(--paper-ink); }
+button.ans.sel { outline: 4px solid var(--accent); transform: translateY(-3px); }
+.subs.one { grid-template-columns: 1fr; }
+.confirm { position: sticky; bottom: 10px; }
+.confirm button { width: 100%; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+.result { display: flex; flex-direction: column; gap: 10px; }
+.result .play { display: flex; flex-direction: column; gap: 4px; }
+.result .who { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.result .win + .who, .result .play.winner .who { color: var(--accent); }
+.winner-banner { text-align: center; font-size: 1.6rem; font-weight: 900; color: var(--accent); }
+h3.sec { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 6px; }
+.scores { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.scores li { background: var(--panel); border-radius: 12px; padding: 8px 12px; }
+.scores .row { display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
+.scores .pts { font-size: 1.3rem; color: var(--accent); }
+.scores .won { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.scores .won span { background: var(--teal); color: #06302c; border-radius: 999px; padding: 1px 9px; font-size: 0.78rem; font-weight: 700; }

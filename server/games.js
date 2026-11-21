@@ -12,5 +12,6 @@ import coverYourAssets from '../games/cover-your-assets/index.js';
 import fiveCrowns from '../games/five-crowns/index.js';
 import handAndFoot from '../games/hand-and-foot/index.js';
 import ohHell from '../games/oh-hell/index.js';
+import fitsTheBill from '../games/fits-the-bill/index.js';
 
-export const games = new Map([flip7, coverYourAssets, fiveCrowns, handAndFoot, ohHell].map((g) => [g.id, g]));
+export const games = new Map([flip7, coverYourAssets, fiveCrowns, handAndFoot, ohHell, fitsTheBill].map((g) => [g.id, g]));

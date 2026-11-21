@@ -22,6 +22,10 @@ Games:
 - **[Oh Hell](games/oh-hell/README.md)**: trick-taking where you bid the
   exact number of tricks you'll win; hands shrink and grow each round
   (3–7 players).
+- **[Fits the Bill](games/fits-the-bill/README.md)**: a judge reveals a
+  describing word, everyone plays the thing from their hand that fits it
+  best, and the judge picks a winner without knowing whose it is (3–10
+  players).
 
 Each game's folder has its own README with its rules and how its engine works.
 
@@ -128,6 +132,7 @@ games/cover-your-assets/   Cover Your Assets engine, pages, tests
 games/five-crowns/ Five Crowns engine, meld solver, pages, tests
 games/hand-and-foot/       Hand and Foot engine, pages, tests
 games/oh-hell/     Oh Hell engine, pages, tests
+games/fits-the-bill/       Fits the Bill engine, original card text, pages, tests
 public/            home page, lib/room.js
 test/              server integration tests
 specs/             per-feature specs
