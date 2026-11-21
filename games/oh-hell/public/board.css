@@ -1,0 +1,66 @@
+html { font-size: clamp(12px, 1.15vw, 28px); }
+body { height: 100vh; overflow: hidden; }
+
+.lobby { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; padding: 2rem; text-align: center; }
+.logo.huge { font-size: 5.5rem; }
+.join { display: flex; align-items: center; gap: 3rem; text-align: left; }
+.qr svg { width: 15rem; height: 15rem; display: block; border-radius: 12px; }
+.url { font-size: 2.2rem; font-weight: 800; color: var(--accent); margin: 0.3rem 0; }
+.chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; max-width: 80vw; }
+.chips li { background: var(--panel); padding: 0.6rem 0.6rem 0.6rem 1.2rem; border-radius: 999px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+.chips li.muted { padding-right: 1.2rem; font-weight: 400; }
+.chips .x { background: transparent; color: var(--muted); padding: 0 0.5rem; font-size: 1.4rem; }
+.patterns { display: flex; gap: 0.8rem; }
+.patterns button { background: var(--panel); color: var(--ink); border: 2px solid var(--line); font-size: 1.2rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.patterns button small { font-weight: 400; color: var(--muted); font-size: 0.9rem; }
+.patterns button[aria-pressed="true"] { border-color: var(--accent); background: rgba(242, 194, 48, 0.18); }
+button.big { font-size: 1.8rem; padding: 1rem 3rem; }
+
+.table {
+  height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) 21rem; grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'bar bar' 'main side' 'grid side'; gap: 0.8rem 1rem; padding: 1rem;
+}
+.bar { grid-area: bar; display: flex; align-items: center; gap: 1.5rem; }
+.bar .logo { font-size: 1.8rem; white-space: nowrap; }
+.banner { flex: 1; font-size: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.banner button { font-size: 1.1rem; padding: 0.5rem 1.2rem; }
+.banner .win { font-size: 2rem; font-weight: 900; color: var(--accent); }
+
+.main { grid-area: main; --cw: 5.2rem; display: flex; align-items: center; gap: 2.5rem; min-height: 0; overflow: hidden; }
+.roundbox { display: flex; flex-direction: column; align-items: center; line-height: 1; gap: 0.3rem; color: var(--muted); }
+.roundbox small { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.roundbox b { font-size: 3.2rem; color: var(--ink); }
+.roundbox i { font-size: 1.4rem; font-style: normal; color: var(--muted); }
+.trumpbox { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.8rem 1.4rem; border: 2px solid var(--accent); border-radius: 1rem; background: rgba(242, 194, 48, 0.1); }
+.trumpbox .trump { font-size: 1.6rem; }
+.trumpbox .card { --cw: 6rem; }
+.trick { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 0; }
+.trick h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.trick .plays { gap: 1.2rem; }
+.trick .play small { font-size: 1.1rem; }
+.trick .play { max-width: calc(var(--cw) + 3rem); }
+.trick .none { color: var(--muted); font-size: 1.2rem; }
+.trick .lt { --cw: 3rem; opacity: 0.85; }
+.trick .lt .plays { gap: 0.6rem; }
+.trick .lt .play small { font-size: 0.85rem; }
+.rres { max-width: 28rem; font-size: 1.2rem; }
+
+.grid {
+  grid-area: grid; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 0.8rem;
+}
+.panel { min-width: 0; padding: 0.6rem 0.8rem; background: var(--panel); border: 3px solid transparent; border-radius: 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.panel.turn { border-color: var(--accent); box-shadow: 0 0 1.2rem rgba(242, 194, 48, 0.35); }
+.panel.winner { border-color: var(--ok); }
+.panel .head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; min-width: 0; }
+.panel h2 { flex: 1 1 4rem; min-width: 4rem; font-size: 1.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel .hs { margin-left: auto; font-size: 1.8rem; font-weight: 900; color: var(--accent); }
+.panel .stats { display: flex; gap: 1rem; color: var(--muted); font-size: 1.1rem; }
+.panel .stats b { color: var(--ink); font-size: 1.4rem; }
+.panel .stats .on b { color: var(--ok); }
+
+.side { grid-area: side; display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; overflow: hidden; }
+.side h3 { font-size: 1.1rem; }
+.mini-join { font-size: 0.9rem; font-weight: 800; color: var(--accent); overflow-wrap: anywhere; }
+.side .grid-scores { font-size: 0.85rem; }
+.side .scores { min-height: 0; overflow: auto; }
+.side .log { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; color: var(--muted); }

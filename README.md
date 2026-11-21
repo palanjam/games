@@ -19,6 +19,9 @@ Games:
   every player for themselves: play your hand, then your foot, and go out
   with 2 clean books and 1 dirty; highest score after 4 rounds wins (2–6
   players).
+- **[Oh Hell](games/oh-hell/README.md)**: trick-taking where you bid the
+  exact number of tricks you'll win; hands shrink and grow each round
+  (3–7 players).
 
 Each game's folder has its own README with its rules and how its engine works.
 
@@ -124,6 +127,7 @@ games/flip7/       Flip 7 engine, pages, tests
 games/cover-your-assets/   Cover Your Assets engine, pages, tests
 games/five-crowns/ Five Crowns engine, meld solver, pages, tests
 games/hand-and-foot/       Hand and Foot engine, pages, tests
+games/oh-hell/     Oh Hell engine, pages, tests
 public/            home page, lib/room.js
 test/              server integration tests
 specs/             per-feature specs
