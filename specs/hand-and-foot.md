@@ -61,7 +61,7 @@ one pile per rank (4–K, A) for the whole round. A new pile needs at least 3
 cards, at least 2 of them natural. In every pile, naturals must outnumber
 wilds (strictly more naturals than wilds) after every play. 3s can never be
 melded. A pile of 7+ cards is a book: clean if it has no wilds, dirty
-otherwise. Wilds cannot be added to a clean book. Wild-only piles are not
+otherwise. A wild may be added to a clean book, which makes it dirty. Wild-only piles are not
 allowed. Cards are only ever melded onto your own piles.
 
 **Opening.** Until a player has opened this round, their first meld batch
@@ -175,8 +175,8 @@ scores, turn, stock and discard top, round results table, and the
 
 - Engine unit tests cover every rule above, including: discard blocked by
   3s and wilds; pickup takes 5 and rejects batches without the top card;
-  opening minimum per round; one pile per rank; wild ratio and no wilds on
-  a clean book; piles past 7 count as one book; hand→foot by meld (same
+  opening minimum per round; one pile per rank; wild ratio and a wild turning
+  a clean book dirty; piles past 7 count as one book; hand→foot by meld (same
   turn) and by discard (next turn); foot meld/discard limits; going out;
   empty-stock round end; scoring incl. red/black 3 penalties and unpicked
   foot; view hides hidden information.

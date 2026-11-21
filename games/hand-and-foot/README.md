@@ -22,8 +22,9 @@ scoreboard. The full rules and the view contract are in
 - **Piles and books.** You build your own piles, one per rank (4s through
   Aces) for the whole round. A new pile needs 3 cards, at least 2 of them
   natural; naturals must always outnumber wilds. 3s are never melded. A pile
-  of 7 or more is a book: clean with no wilds, dirty with any. A clean book
-  takes no wilds. A pile keeps growing past 7 and is still one book.
+  of 7 or more is a book: clean with no wilds, dirty with any. Adding a wild
+  to a clean book is allowed and makes it dirty. A pile keeps growing past 7
+  and is still one book.
 - **Opening.** Your first lay-down each round must total at least 50, 90,
   120 or 150 points (rounds 1–4), counting wilds at face value.
 - **Hand, then foot.** When you meld your whole hand you pick up your foot

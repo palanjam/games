@@ -361,9 +361,9 @@ export class Game {
 
       const existing = piles.get(rank);
       const wilds = cards.filter(isWild).length;
-      if (existing) {
-        if (wilds && bookType(existing) === 'clean') throw new GameError(`Your ${label} are a clean book: no wild cards on it.`);
-      } else {
+      // Adding to an existing pile has no minimum. A wild may go on a clean
+      // book: that makes it dirty, which a player may want.
+      if (!existing) {
         if (cards.length < 3) throw new GameError(`A new pile needs at least 3 cards (${label}).`);
         if (cards.length - wilds < 2) throw new GameError(`A new pile needs at least 2 natural cards (${label}).`);
       }

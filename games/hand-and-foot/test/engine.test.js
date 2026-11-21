@@ -381,18 +381,17 @@ test('one pile per rank: melding a rank you already have adds to that pile', () 
   assert.deepEqual(g.view('A').players.find((p) => p.id === 'B').piles.map((p) => p.rank), [9, 13]);
 });
 
-test('naturals must outnumber wilds, and a clean book takes no wilds', () => {
+test('naturals must outnumber wilds; a wild may turn a clean book dirty', () => {
   const g = setup();
   arrange(g, {
     players: {
       B: {
-        hand: 'JK 2♣ 2♦ 2♥ 10♥ 10♦ Q♥ 5♣ 5♦',
+        hand: 'JK 2♣ 2♦ 2♥ 2♠ 10♥ 10♦ Q♥ 5♣ 5♦',
         piles: { 9: '9♥ 9♦ 9♣ 9♠ 9♥ 9♦ 9♣', 13: 'K♥ K♦ JK', 8: '8♥ 8♦ 8♣ 8♠' },
       },
     },
   });
   g.draw('B');
-  assert.throws(() => g.meld('B', [entry(g, 'B', 9, 'JK')]), /clean book/);
   assert.throws(() => g.meld('B', [entry(g, 'B', 13, '2♣')]), /more natural cards than wild/);
   assert.throws(() => g.meld('B', [entry(g, 'B', 10, '10♥ 10♦ 2♣ 2♦')]), /more natural cards than wild/);
   assert.throws(() => g.meld('B', [entry(g, 'B', 12, 'JK 2♣ 2♦')]), /at least 2 natural/);
@@ -401,6 +400,13 @@ test('naturals must outnumber wilds, and a clean book takes no wilds', () => {
   assert.equal(bookType(pile(g, 'B', 8).cards), 'dirty');
   g.meld('B', [entry(g, 'B', 10, '10♥ 10♦ JK')]);
   assert.equal(pile(g, 'B', 10).cards.length, 3);
+
+  assert.equal(bookType(pile(g, 'B', 9).cards), 'clean');
+  assert.equal(g.view('B').players.find((p) => p.id === 'B').cleanBooks, 1);
+  g.meld('B', [entry(g, 'B', 9, '2♠')]);
+  assert.equal(bookType(pile(g, 'B', 9).cards), 'dirty');
+  const b = g.view('B').players.find((p) => p.id === 'B');
+  assert.deepEqual([b.cleanBooks, b.dirtyBooks], [0, 2]);
 });
 
 test('a batch is all or nothing: one bad entry leaves everything as it was', () => {
