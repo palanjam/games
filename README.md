@@ -47,8 +47,7 @@ the server prints (the board's QR code uses it automatically).
 
 ```sh
 cp .env.example .env    # set GAMES_HOST, and the entrypoint/cert resolver names
-docker compose up -d --build
-docker network connect games-proxy traefik   # or add games-proxy to Traefik's compose
+docker compose up -d --build    # joins Traefik's existing `frontend` network
 ```
 
 Settings (environment): `PORT` (3000), `PUBLIC_URL` (base for join links and
@@ -130,9 +129,9 @@ Dockerfile, docker-compose.yml, .env.example   deployment
 - **Production**: one container behind Traefik on a host name such as
   `games.example.com` (serve at the root of a host; there is no sub-path
   setting). TLS ends at Traefik; WebSockets need no extra config. The
-  container has no published ports, a read-only filesystem, no capabilities
-  and sits alone with Traefik on the internal `games-proxy` network with no
-  outbound access (see `docs/decisions/2026-11-21-hardened-container.md`).
+  container has no published ports, no volumes, a read-only filesystem and
+  no capabilities, and its only network is Traefik's `frontend` (see
+  `docs/decisions/2026-11-21-traefik-frontend-network.md`).
   There is no login: anyone with the URL can start or join a game. To limit
   it to family, add a Traefik middleware (basic auth or your forward-auth
   SSO) to the router's labels.

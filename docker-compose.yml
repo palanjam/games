@@ -1,5 +1,5 @@
 # Runs the game server behind an existing Traefik. Copy .env.example to .env
-# and set GAMES_HOST; Traefik must join the `games-proxy` network (see README).
+# and set GAMES_HOST. The container joins Traefik's existing network only.
 services:
   games:
     build: .
@@ -15,18 +15,16 @@ services:
     mem_limit: 256m
     pids_limit: 128
     cpus: 1
-    networks: [games-proxy]
+    networks: [frontend]
     labels:
       - traefik.enable=true
-      - traefik.docker.network=games-proxy
+      - traefik.docker.network=frontend
       - traefik.http.routers.games.rule=Host(`${GAMES_HOST}`)
       - traefik.http.routers.games.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
       - traefik.http.routers.games.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
       - traefik.http.services.games.loadbalancer.server.port=3000
 
 networks:
-  # Internal: Docker gives it no route out, so the container can reach only
-  # what is attached here (Traefik), not the internet or your LAN.
-  games-proxy:
-    name: games-proxy
-    internal: true
+  # Traefik's network, created outside this file.
+  frontend:
+    external: true
