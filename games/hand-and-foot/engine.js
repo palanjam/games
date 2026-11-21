@@ -326,7 +326,17 @@ export class Game {
     const plan = this.planMelds(p, melds, null);
     this.checkLeftover(p, plan, 0);
     this.applyMelds(p, plan);
+    if (p.inFoot && !p.hand.length) {
+      this.goOut(p);
+      return;
+    }
     this.maybePickUpFoot(p);
+  }
+
+  goOut(p) {
+    this.outId = p.id;
+    this.addLog(`${p.name} goes out!`);
+    this.endRound();
   }
 
   // Validates a whole batch against a scratch copy of the player's piles and
@@ -387,12 +397,12 @@ export class Game {
     return { entries, used, total, canGoOut };
   }
 
-  // In the foot you always need a card left to discard, and until you have
-  // the books to go out, a card to keep after that discard.
+  // In the foot, until you have the books to go out, a meld must leave you a
+  // card to discard and a card to keep. With the books, melding every card
+  // goes out (no discard needed).
   checkLeftover(p, plan, incoming) {
     if (!p.inFoot) return;
     const left = p.hand.filter((c) => !plan.used.has(c)).length + incoming;
-    if (left === 0) throw new GameError('Keep a card to discard.');
     if (left < 2 && !plan.canGoOut) {
       throw new GameError("Keep two cards: you can't discard your last card until you have 2 clean books and 1 dirty book.");
     }
@@ -440,7 +450,7 @@ export class Game {
 
   // Discarding ends the turn. Discarding the last card of the hand picks up
   // the foot (played next turn); discarding the last card of the foot goes
-  // out, which needs 2 clean books and 1 dirty book.
+  // out, which needs 2 clean books and 1 dirty book (as does melding it).
   discardCard(playerId, cardId) {
     const p = this.assertTurn(playerId, 'play');
     const card = this.handCard(p, cardId);
@@ -454,9 +464,7 @@ export class Game {
     // remember what lies under it.
     this.addLog(`${p.name} discarded.`);
     if (last && p.inFoot) {
-      this.outId = p.id;
-      this.addLog(`${p.name} goes out!`);
-      this.endRound();
+      this.goOut(p);
       return;
     }
     if (last) this.pickUpFoot(p);

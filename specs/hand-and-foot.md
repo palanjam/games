@@ -76,11 +76,12 @@ foot.
 - If your discard empties your hand, you pick up your foot and your turn
   ends; you play it next turn.
 
-**Going out.** You go out by discarding the last card of your foot, and only
-if you have at least 2 clean books and 1 dirty book. While in your foot:
+**Going out.** You go out by discarding or melding the last card of your
+foot, and only if you have at least 2 clean books and 1 dirty book (counting
+books that meld completes). While in your foot:
 - a discard may not leave you with 0 cards unless you have those books;
-- a meld batch may never leave you with 0 cards (you need a card to
-  discard), and while you lack the books it must leave at least 2.
+- while you lack the books, a meld batch must leave at least 2 cards (one to
+  discard, one to keep); with them, it may leave none, and you go out.
 Going out ends the round.
 
 **Scoring** (each player, each round):

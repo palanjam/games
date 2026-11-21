@@ -30,9 +30,10 @@ scoreboard. The full rules and the view contract are in
 - **Hand, then foot.** When you meld your whole hand you pick up your foot
   and keep playing from it. If your discard empties your hand, you pick up
   your foot and play it next turn.
-- **Going out.** Discard the last card of your foot, which you may only do
-  with at least 2 clean books and 1 dirty book. Until you have them you must
-  keep 2 cards in your foot after melding (one to discard, one to keep).
+- **Going out.** Discard or meld the last card of your foot, which you may
+  only do with at least 2 clean books and 1 dirty book. Until you have them
+  you must keep 2 cards in your foot after melding (one to discard, one to
+  keep).
 - **Scoring.** Every card in your piles at face value, +500 per clean book,
   +300 per dirty book, +100 for going out, minus every card still in your
   hand or foot (red 3 −300, black 3 −5). If the stock runs out, the round

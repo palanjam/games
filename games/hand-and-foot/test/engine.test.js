@@ -518,7 +518,7 @@ test('in the foot, a meld must keep a card, and two until you have the books', (
   assert.equal(g.player('B').hand.length, 4);
 });
 
-test('in the foot, a meld that completes the books may leave one card, never none', () => {
+test('in the foot, a meld that completes the books may leave one card', () => {
   const g = setup();
   arrange(g, {
     stock: '9♠ 9♥ 5♣',
@@ -529,13 +529,40 @@ test('in the foot, a meld that completes the books may leave one card, never non
   g.meld('B', [entry(g, 'B', 9, '9♠ 9♥')]); // the 9s become a clean book (8 cards)
   assert.equal(g.view(null).players.find((p) => p.id === 'B').canGoOut, true);
 
-  const h = setup();
-  arrange(h, {
+});
+
+test('going out by melding: with the books, laying down the last foot card goes out', () => {
+  const g = setup();
+  arrange(g, {
     stock: '4♠ 4♣ 4♦',
     players: { B: { hand: '', inFoot: true, piles: TWO_CLEAN_ONE_DIRTY } },
   });
-  h.draw('B');
-  assert.throws(() => h.meld('B', [entry(h, 'B', 4, '4♠ 4♣ 4♦')]), /Keep a card to discard/);
+  g.draw('B');
+  g.meld('B', [entry(g, 'B', 4, '4♠ 4♣ 4♦')]);
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.outId, 'B');
+  assert.equal(g.player('B').roundScores[0].wentOut, 100);
+
+  // The case from play: one wild left, and adding it to a pile completes the books.
+  const h = setup();
+  arrange(h, {
+    stock: '5♣ 5♦ 5♥',
+    players: { B: { hand: '2♣', inFoot: true, piles: { 9: TWO_CLEAN_ONE_DIRTY[9], 10: TWO_CLEAN_ONE_DIRTY[10], 13: 'K♥ K♦ K♣ K♠ K♥ K♦' } } },
+  });
+  h.draw('B'); // 2♣ 5♣ 5♦ 5♥
+  h.meld('B', [entry(h, 'B', 5, '5♣ 5♦ 5♥'), entry(h, 'B', 13, '2♣')]);
+  assert.equal(h.phase, 'roundOver');
+  assert.equal(h.outId, 'B');
+
+  // Without the books, laying down every card is still refused.
+  const k = setup();
+  arrange(k, {
+    stock: '4♠ 4♣ 4♦',
+    players: { B: { hand: '', inFoot: true, piles: { 9: TWO_CLEAN_ONE_DIRTY[9], 10: TWO_CLEAN_ONE_DIRTY[10] } } },
+  });
+  k.draw('B');
+  assert.throws(() => k.meld('B', [entry(k, 'B', 4, '4♠ 4♣ 4♦')]), /Keep two cards/);
+  assert.equal(k.phase, 'playing');
 });
 
 test("in the foot you can't discard your last card without 2 clean books and 1 dirty", () => {

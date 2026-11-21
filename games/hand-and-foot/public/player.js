@@ -319,7 +319,7 @@ function dock(p, map) {
   let warn = false;
   if (d.error) { hint = d.error; warn = true; }
   else if (d.wildsOnly) hint = `${sel.size} wild${sel.size === 1 ? '' : 's'} selected: tap one of your piles below to add ${sel.size === 1 ? 'it' : 'them'}.`;
-  else if (!singleDiscard && entries.length && you.inFoot && remaining <= 0) { hint = 'Keep at least one card to discard.'; warn = true; }
+  else if (!singleDiscard && entries.length && you.inFoot && canOutAfter && remaining <= 0) hint = 'This lays down your last card: you go out!';
   else if (!singleDiscard && entries.length && you.inFoot && !canOutAfter && remaining < 2) { hint = 'Until you hold 2 clean + 1 dirty book, a lay-down must leave at least 2 cards.'; warn = true; }
   else if (!singleDiscard && entries.length && !you.inFoot && remaining <= 0) hint = 'This empties your hand: you pick up your foot and keep playing.';
   else if (singleDiscard) hint = you.inFoot && you.cards.length === 1 && !canOut
