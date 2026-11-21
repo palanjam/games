@@ -105,8 +105,9 @@ function gameView() {
     <section class="banner ${isMyDraw() || myDiscard() ? 'go' : ''} ${state.outId && !over ? 'last' : ''}">${bannerText()}</section>
     ${over ? resultsView() : ''}
     <section class="table">
-      <div class="pile">${state.discardTop ? cardHtml(state.discardTop, state.wildRank) : '<span class="card empty"></span>'}<small class="muted">Discard (${state.discardCount})</small></div>
+      <!-- Deck left, discard right: lines up with the Draw / Take buttons below. -->
       <div class="pile">${backHtml()}<small class="muted">Deck (${state.deckCount})</small></div>
+      <div class="pile">${state.discardTop ? cardHtml(state.discardTop, state.wildRank) : '<span class="card empty"></span>'}<small class="muted">Discard (${state.discardCount})</small></div>
     </section>
     ${isMyDraw() ? drawView() : ''}
     ${over ? '' : handView(p, hand)}
