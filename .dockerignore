@@ -1,0 +1,8 @@
+node_modules
+.git
+test
+games/*/test
+docs
+specs
+*.md
+.DS_Store
