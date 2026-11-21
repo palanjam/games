@@ -8,9 +8,9 @@ scoreboard. The full rules and the view contract are in
 
 ## Rules as played
 
-- **Cards.** One deck per player plus one, each with 2 Jokers. Jokers and 2s
-  are wild. Values: Joker 50, 2 and Ace 20, 8 through King 10, 4 through 7
-  5, black 3 5, red 3 300.
+- **Cards.** One deck per player plus one (at least 4), each with 2
+  Jokers. Jokers and 2s are wild. Values: Joker 50, 2 and Ace 20, 8 through
+  King 10, 4 through 7 5, black 3 5, red 3 300.
 - **Deal.** Everyone gets an 11-card hand and an 11-card foot, which stays
   face down until you pick it up. One card is turned up to start the discard
   pile. The deal rotates; the player after the dealer goes first.
@@ -47,7 +47,8 @@ discarding the last foot card without the books, red 3s as dead cards, 4
 rounds at 50 / 90 / 120 / 150 with wilds at face value. Everything below
 was decided for this implementation:
 
-- 2–6 players; decks = players + 1, each 52 cards + 2 Jokers.
+- 2–6 players; decks = players + 1 but never fewer than 4, each 52 cards
+  + 2 Jokers.
 - Card values other than the 3s follow the linked rules (Joker 50, 2/A 20,
   8–K 10, 4–7 5).
 - Hands and feet are 11 cards. The first card turned up is never redrawn,

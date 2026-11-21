@@ -15,6 +15,7 @@ import { GameError } from '../../server/game-error.js';
 export const ROUNDS = 4;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
+export const MIN_DECKS = 4;
 export const HAND_SIZE = 11;
 export const STOCK_DRAW = 3;
 export const PICKUP_COUNT = 5;
@@ -60,7 +61,9 @@ export function bookType(cards) {
   return cards.some(isWild) ? 'dirty' : 'clean';
 }
 
-// One deck per player plus one, each 52 cards and 2 Jokers; ids 0..n-1.
+// `decks` decks of 52 cards and 2 Jokers each; ids 0..n-1.
+export const deckCount = (players) => Math.max(MIN_DECKS, players + 1);
+
 export function buildDeck(decks) {
   const cards = [];
   for (let d = 0; d < decks; d++) {
@@ -171,11 +174,12 @@ export class Game {
     this.startRound();
   }
 
-  // Every round is dealt from fresh decks: one per player plus one.
+  // Every round is dealt from fresh decks: one per player plus one, but
+  // never fewer than 4, so small games still have cards to make books.
   startRound() {
     this.round++;
     this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
-    this.stock = this.nextDeck ?? shuffle(buildDeck(this.players.length + 1), this.rng);
+    this.stock = this.nextDeck ?? shuffle(buildDeck(deckCount(this.players.length)), this.rng);
     this.nextDeck = null;
     this.discard = [];
     this.outId = null;

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Game, GameError, ROUNDS, OPENING_MINIMUMS, MAX_PLAYERS, buildDeck, cardName, cardValue, bookType,
+  Game, GameError, ROUNDS, OPENING_MINIMUMS, MAX_PLAYERS, buildDeck, deckCount, cardName, cardValue, bookType,
 } from '../engine.js';
 import handAndFoot, { autoDiscard } from '../index.js';
 import { games } from '../../../server/games.js';
@@ -84,16 +84,19 @@ const snapshot = (g) => JSON.stringify({ players: g.players, stock: g.stock, dis
 
 // ---- deck, values, deal ------------------------------------------------
 
-test('deck: one 54-card deck per player plus one, unique ids', () => {
+test('deck: one 54-card deck per player plus one, at least 4, unique ids', () => {
+  assert.deepEqual([2, 3, 4, 5, 6].map(deckCount), [4, 4, 5, 6, 7]);
   const deck = buildDeck(4);
   assert.equal(deck.length, 216);
   assert.equal(new Set(ids(deck)).size, 216);
   assert.equal(deck.filter((c) => c.joker).length, 8);
   assert.ok(deck.filter((c) => c.joker).every((c) => c.rank === null && c.suit === null));
   assert.equal(deck.filter((c) => c.rank === 14 && c.suit === 'spades').length, 4);
-  const g = setup({ players: ['A', 'B', 'C'] });
-  const all = [...g.stock, ...g.discard, ...g.players.flatMap((p) => [...p.hand, ...p.foot])];
-  assert.equal(all.length, 4 * 54);
+  for (const [players, decks] of [[['A', 'B'], 4], [['A', 'B', 'C', 'D', 'E'], 6]]) {
+    const g = setup({ players });
+    const all = [...g.stock, ...g.discard, ...g.players.flatMap((p) => [...p.hand, ...p.foot])];
+    assert.equal(all.length, decks * 54);
+  }
 });
 
 test('card values: Joker 50, 2 and A 20, 8–K 10, 4–7 5, black 3 5, red 3 300', () => {

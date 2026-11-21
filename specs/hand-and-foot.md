@@ -34,7 +34,7 @@ game README must list it under "House rules and decisions".
 ## Rules as implemented
 
 **Players and cards.** 2–6 players, individual play (no teams). Decks =
-players + 1, each a 52-card deck plus 2 Jokers. Wilds: Jokers and 2s.
+players + 1 but at least 4, each a 52-card deck plus 2 Jokers. Wilds: Jokers and 2s.
 
 **Card values** (used for melds, opening totals and penalties):
 Joker 50, 2 20, Ace 20, K/Q/J/10/9/8 10, 7/6/5/4 5, black 3 5, red 3 300.
