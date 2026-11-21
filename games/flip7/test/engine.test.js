@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Game, buildDeck, scoreHand, GameError } from '../src/game.js';
+import { Game, buildDeck, scoreHand, GameError } from '../engine.js';
 
 // Build a stacked deck from tokens: 5, '+4', 'x2', 'F' (Freeze), 'T' (Flip Three), 'S' (Second Chance).
 function stack(...tokens) {

@@ -173,3 +173,5 @@ input:focus { outline: none; border-color: var(--accent); }
   max-width: calc(100% - 32px);
 }
 .toast.show { transform: translate(-50%, 0); }
+.code { color: var(--accent); letter-spacing: 0.1em; }
+a { color: var(--accent); }

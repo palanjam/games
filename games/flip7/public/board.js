@@ -1,10 +1,11 @@
 import { socket, esc, byId, beginCards, endCards, handHtml, STATUS, pendingText } from './ui.js';
+import { roomInfo } from '/lib/room.js';
 
 const app = document.getElementById('app');
 let state = null;
 let info = { joinUrl: '', qrSvg: '' };
 
-fetch('/api/info').then((r) => r.json()).then((i) => { info = i; render(); });
+roomInfo.then((i) => { if (i) { info = i; render(); } });
 socket.on('state', (s) => { state = s; render(); });
 
 function render() {
@@ -23,6 +24,7 @@ function lobbyView() {
       <div>
         <p class="muted">Scan with your phone, or open</p>
         <p class="url">${esc(info.joinUrl)}</p>
+        <p class="muted">Room code <b class="code">${esc(info.code ?? '')}</b></p>
         <p class="muted">First to ${state.targetScore} points wins.</p>
       </div>
     </div>

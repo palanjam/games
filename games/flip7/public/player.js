@@ -1,21 +1,13 @@
 import { socket, esc, byId, beginCards, endCards, handHtml, STATUS, pendingText } from './ui.js';
-
-// `?seat=2` gives a separate identity, handy for testing several players in one browser.
-const KEY = `flip7-token${new URLSearchParams(location.search).get('seat') ?? ''}`;
-const store = {
-  get: () => { try { return localStorage.getItem(KEY); } catch { return null; } },
-  set: (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch {} },
-};
+import { claimSeat, code } from '/lib/room.js';
 
 const app = document.getElementById('app');
 let state = null;
 let me = undefined; // undefined until the server has told us who we are
 let lastTurn = null;
 
-socket.on('connect', () => socket.emit('hello', { token: store.get() }));
-socket.on('you', ({ playerId, token }) => {
+claimSeat((playerId) => {
   me = playerId;
-  store.set(token ?? null);
   render();
 });
 socket.on('state', (s) => {
@@ -61,6 +53,8 @@ function lobbyView() {
   return `<div class="center">
     <div class="logo">FLIP <span>7</span></div>
     <p>You're in! Waiting for everyone to join…</p>
+    <p class="muted">Room code <b class="code">${code}</b> · <a href="/r/${code}/board" target="_blank">table screen</a></p>
+    <button class="ghost" data-share>Invite people</button>
     <ul class="names">${state.players.map((p) => `<li class="${p.id === me ? 'me' : ''}">${esc(p.name)}</li>`).join('')}</ul>
     <button class="big" data-emit="start" ${n < 2 ? 'disabled' : ''}>Start game (${n} player${n === 1 ? '' : 's'})</button>
     <button class="ghost" data-emit="leave">Leave</button>

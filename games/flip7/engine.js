@@ -4,6 +4,8 @@
 // Freeze, who gets a Flip Three, who receives a spare Second Chance) can pause
 // the deal or a Flip Three sequence mid-way and resume once the choice is made.
 
+import { GameError } from '../../server/game-error.js';
+
 export const TARGET_SCORE = 200;
 export const FLIP7_BONUS = 15;
 export const MIN_PLAYERS = 2;
@@ -11,7 +13,7 @@ export const MAX_PLAYERS = 12;
 
 const ACTION_NAMES = { freeze: 'Freeze', flipThree: 'Flip Three', secondChance: 'Second Chance' };
 
-export class GameError extends Error {}
+export { GameError };
 
 // 94 cards: 0 x1, 1 x1, 2 x2 ... 12 x12; +2/+4/+6/+8/+10 and x2 once each;
 // Freeze, Flip Three and Second Chance three times each.
@@ -358,7 +360,11 @@ export class Game {
     if (this.log.length > 50) this.log.shift();
   }
 
-  // Everything in Flip 7 is face up, so one public view serves every client.
+  // Everything in Flip 7 is face up, so every client gets the same view.
+  view() {
+    return this.toJSON();
+  }
+
   toJSON() {
     return {
       phase: this.phase,

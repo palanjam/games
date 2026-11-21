@@ -1,10 +1,8 @@
 // Shared helpers for the phone and board pages.
 
-export const socket = window.io();
+import { esc } from '/lib/room.js';
 
-export function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-}
+export { socket, esc } from '/lib/room.js';
 
 export const byId = (state, id) => state.players.find((p) => p.id === id);
 
@@ -85,28 +83,3 @@ export function pendingText(state) {
     ? `${who} is giving away a Second Chance…`
     : `${who} drew ${pend.label} and is choosing a target…`;
 }
-
-let toastTimer;
-export function toast(msg) {
-  let el = document.querySelector('.toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.className = 'toast';
-    document.body.append(el);
-  }
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
-}
-
-socket.on('problem', toast);
-
-// Delegated click handling: <button data-emit="event" data-arg='{"k":"v"}'>
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-emit]');
-  if (!btn) return;
-  const arg = btn.dataset.arg ? JSON.parse(btn.dataset.arg) : {};
-  if (btn.dataset.confirm && !confirm(btn.dataset.confirm)) return;
-  socket.emit(btn.dataset.emit, arg);
-});
