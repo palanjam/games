@@ -1,107 +1,138 @@
-# Flip 7
+# Game Night
 
-A digital version of the Flip 7 card game for playing in the same room.
-One computer runs the server and shows the table on a TV; everyone plays from
-their phone's browser.
+Self-hosted card games for family and friends. Pick a game, start a lobby and
+share its 4-letter code or link; everyone plays from their phone's browser.
+A TV or laptop can optionally show the whole table.
+
+Games:
+
+- **[Flip 7](games/flip7/README.md)**: push-your-luck number flipping,
+  first to 200 (2–12 players).
+- **[Cover Your Assets](specs/cover-your-assets.md)**: collect and steal
+  sets of assets, first to $1,000,000 or a one-round quick game (2–6
+  players). Classic rules; card values are in
+  `games/cover-your-assets/engine.js`.
+
+Each game's folder has its own README with its rules and how its engine works.
 
 ## How to play
 
-```sh
-npm install
-npm start
-```
-
-The server prints two addresses:
-
-- **Table screen** — `http://localhost:3000/board`. Open it on the computer
-  connected to the TV (full-screen it with F11 / ⌃⌘F).
-- **Players join** — `http://<your-LAN-IP>:3000/`. The board shows this as a
-  QR code; phones must be on the same Wi-Fi.
-
-Everyone joins in the lobby, then anyone presses **Start game**. On your turn
-your phone shows **HIT** / **STAY**; when you draw a Freeze, Flip Three or a
-spare Second Chance, it asks you who to give it to. Between rounds anyone can
-press **Next round**. First to 200 wins.
+1. Open the site and press **Start a lobby** on a game. You land on that
+   room's phone page; join with your name.
+2. Share it: **Invite people** (share sheet or copy link), read out the room
+   code (others enter it on the home page), or open the **table screen**
+   (`/r/<code>/board`) on a TV, which shows a QR code.
+3. Anyone in the lobby presses **Start game**.
 
 If a phone locks or reloads, it rejoins its seat automatically. If someone
-drops out entirely, the board offers a button to act for them (stay, or pick
-a random target), and players can be removed between rounds.
+drops out, the table screen offers to act for them, and players can be
+removed between rounds. Rooms close after 12 hours without use.
 
-Settings: `PORT` (default 3000) and `PUBLIC_URL` (override the join URL, e.g.
-if the wrong network interface is detected).
-
-Testing alone: add `?seat=2`, `?seat=3`… to the phone URL to get separate
+Testing alone: add `?seat=2`, `?seat=3`… to a room URL to get separate
 players in one browser.
 
-## Rules implemented
+## Running it
 
-94 cards: one 0, then each number 1–12 as many times as its value; +2, +4, +6,
-+8, +10 and ×2 once each; three each of Freeze, Flip Three and Second Chance.
+**Locally** (Node 20+):
 
-- A duplicate number busts you (0 points) unless you hold a Second Chance,
-  which cancels it. You can hold only one; extras go to another active player.
-- **Freeze**: the drawer picks an active player, who banks their points and
-  is out of the round.
-- **Flip Three**: the drawer picks an active player, who flips three cards.
-  Freeze / Flip Three drawn during it are resolved afterwards (discarded on a bust).
-- Seven different numbers is a **Flip 7**: +15 and the round ends at once.
-- Score = numbers (doubled by ×2) + modifiers + bonus. The dealer rotates; the
-  deck carries over between rounds and the discards are reshuffled when it runs out.
+```sh
+npm install
+npm start        # npm run dev to restart on changes; npm test for tests
+```
+
+Open `http://localhost:3000`. Phones on the same Wi-Fi use the LAN address
+the server prints (the board's QR code uses it automatically).
+
+**On a server behind Traefik** (Docker):
+
+```sh
+cp .env.example .env    # set GAMES_HOST, and the entrypoint/cert resolver names
+docker compose up -d --build
+docker network connect games-proxy traefik   # or add games-proxy to Traefik's compose
+```
+
+Settings (environment): `PORT` (3000), `PUBLIC_URL` (base for join links and
+QR codes; compose sets it from `GAMES_HOST`), `MAX_ROOMS` (50),
+`ROOM_IDLE_HOURS` (12).
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|------------|
-| Server | Node.js 20+, Express 5 |
+| Server | Node.js 22 (20+ supported), Express 5 |
 | Real-time | Socket.IO 4 |
 | Clients | Plain HTML/CSS/JS modules, no build step |
-| Tests | `node:test` |
+| Tests | `node:test`, socket.io-client |
+| Deployment | Distroless container, Docker Compose, Traefik |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  Phone1[Phone browser] <-- Socket.IO --> Server
-  Phone2[Phone browser] <-- Socket.IO --> Server
-  Board[Board page on TV] <-- Socket.IO --> Server
-  Board -- GET /api/info --> Server
-  Server --> Engine[Game engine<br/>in memory]
+  Phone[Phone browsers] <-- Socket.IO --> Server
+  Board[Table screen] <-- Socket.IO --> Server
+  Home[Home page] -- REST /api --> Server
+  Traefik -- HTTPS + WebSocket --> Server
+  Server --> Rooms[Rooms in memory<br/>code → game engine]
+  Rooms --> Engines[games/*/engine.js]
 ```
 
-- **`server.js`** — serves the pages, maps session tokens to players, turns
-  socket events into engine calls, and broadcasts the state after each one.
-- **`src/game.js`** — the rules engine: a pure state machine with no I/O.
-- **Phone page** (`/`) — join form, your hand, hit/stay, target picker.
-- **Board page** (`/board`) — lobby with QR code; during play, every
-  player's cards, scores and an event log.
+- **`server/app.js`**: HTTP routes (home, `/r/<code>` pages, `/api/*`) and
+  the Socket.IO hub. Sockets name their room in the handshake; after every
+  action each socket gets `game.view(itsPlayerId)`, so engines decide what
+  each seat may see (hidden hands).
+- **`server/rooms.js`**: room codes, seat tokens, connection counts, idle
+  sweeping. **`server/games.js`**: the game registry and engine contract.
+- **`games/<id>/`**: one folder per game: `index.js` (descriptor and socket
+  actions), `engine.js` (pure rules state machine), `public/` (phone page
+  `play.html`, table screen `board.html`), `test/`.
+- **`public/`**: home page and `lib/room.js`, the client helper every game
+  page uses (socket, seat token, toasts, share link).
 
-All state is in memory; restarting the server ends the game.
+All state is in memory; restarting the server ends every game.
 
 ## Key flows
 
-- **Join / rejoin**: on connect the client sends its stored token (`hello`).
-  A known token re-attaches the socket to its seat; otherwise the phone shows
-  the join form, and `join` creates a player and returns a new token.
-- **A move**: the phone emits `hit`/`stay`/`choose`; the server calls the
-  engine, which validates it (turn, pending choice) and runs the resulting
-  draws; the server then broadcasts `state` to every client. Rule errors go
+- **Start a lobby**: `POST /api/rooms {gameId}` returns a code; the browser
+  goes to `/r/<code>`, which serves that game's `play.html`.
+- **Join / rejoin**: the page connects with `auth.room`, then sends its
+  stored token (`hello`). A known token re-attaches the seat; otherwise the
+  page shows the join form and `join` returns a new token, kept per room in
+  localStorage.
+- **A move**: the page emits a game event (`hit`, `pair`, `challenge`…); the
+  server looks it up in the game's `actions`, the engine validates and
+  applies it, and every socket in the room gets its own view. Rule errors go
   back to the sender only, as `problem`.
-- **Pausing for choices**: the engine queues work as a task stack; when a
-  draw needs a decision (Freeze target, etc.) it sets `pending` and stops
-  until the named player answers, then resumes the deal or Flip Three.
+
+## Adding a game
+
+Create `games/<id>/` with `index.js`, `engine.js` and `public/play.html` +
+`board.html` (copy Flip 7's shape), then register it in `server/games.js`.
+The contract an engine must meet is documented there.
 
 ## Where things live
 
 ```
-server.js          HTTP + Socket.IO server
-src/game.js        rules engine
-test/              engine tests (npm test)
-public/            phone page (index.html, player.*), board (board.*), shared ui.js/style.css
+server/            index.js (entry), app.js, rooms.js, games.js, game-error.js
+games/flip7/       Flip 7 engine, pages, tests
+games/cover-your-assets/   Cover Your Assets engine, pages, tests
+public/            home page, lib/room.js
+test/              server integration tests
+specs/             per-feature specs
 docs/decisions/    decision and gotcha records
+Dockerfile, docker-compose.yml, .env.example   deployment
 ```
 
 ## Environment
 
-- Runs on any machine with Node 20+. Phones must reach the server over the
-  LAN, so allow incoming connections on the port if the OS firewall asks.
-- No secrets, no external services. The QR code is generated locally.
+- **Local**: any machine with Node 20+; allow incoming connections on the
+  port if the OS firewall asks. No secrets, no external services.
+- **Production**: one container behind Traefik on a host name such as
+  `games.example.com` (serve at the root of a host; there is no sub-path
+  setting). TLS ends at Traefik; WebSockets need no extra config. The
+  container has no published ports, a read-only filesystem, no capabilities
+  and sits alone with Traefik on the internal `games-proxy` network with no
+  outbound access (see `docs/decisions/2026-11-21-hardened-container.md`).
+  There is no login: anyone with the URL can start or join a game. To limit
+  it to family, add a Traefik middleware (basic auth or your forward-auth
+  SSO) to the router's labels.
