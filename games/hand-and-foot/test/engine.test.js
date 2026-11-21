@@ -227,6 +227,30 @@ test('taking the discard pile takes the top 5; the top card is melded, the rest 
   assert.equal(g.view(null).discardTop.rank, 5);
 });
 
+test('the discard pile keeps discard order: a pickup takes the last 5 discards, the rest stay in order', () => {
+  const g = setup();
+  arrange(g, {
+    stock: '4♥ 4♦ 4♣ 4♠ 6♥ 6♦ 6♣ 6♠ 7♥ 7♦ 7♣ 7♠ 9♥ 9♦ 9♣ 9♠ 10♥ 10♦',
+    discard: '8♣',
+    players: { A: { hand: 'J♥ J♦ J♣ J♠ Q♥ Q♦', opened: true }, B: { hand: 'J♥ J♦ J♣ J♠ Q♥ Q♦', opened: true } },
+  });
+  // Six turns, each discarding a known card on top of the last.
+  const order = ['J♥', 'Q♥', 'J♦', 'Q♦', 'J♣', 'K♠'];
+  for (const name of order) {
+    const pid = g.turnId;
+    g.draw(pid);
+    if (name === 'K♠') g.player(pid).hand.push(card('K♠'));
+    g.discardCard(pid, idOf(g, pid, name));
+  }
+  assert.equal(names(g.discard), `8♣ ${order.join(' ')}`);
+
+  const pid = g.turnId;
+  arrange(g, { players: { [pid]: { hand: 'K♥ K♦ 4♠' } } });
+  g.pickup(pid, [{ rank: 13, cardIds: [...idsOf(g, pid, 'K♥ K♦'), g.discard.at(-1).id] }]);
+  assert.equal(names(g.discard), '8♣ J♥');
+  assert.equal(names(g.player(pid).hand), '4♠ Q♥ J♦ Q♦ J♣');
+});
+
 test('a smaller discard pile is taken whole', () => {
   const g = setup();
   arrange(g, { discard: '9♣ K♠', players: { B: { hand: 'K♥ 4♠', piles: { 13: 'K♦ K♣ K♥' } } } });
