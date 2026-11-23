@@ -44,3 +44,22 @@ a random target).
 - **`public/`**: phone page (`play.html`, `player.js`) and table screen
   (`board.html`, `board.js`), sharing `ui.js` and `style.css`.
 - **`test/`**: engine tests with stacked decks.
+
+## House rules and decisions
+
+- **Booting a player**: the table screen has a remove button (with a confirm)
+  on every seated player. Removal is immediate, even mid-round: their cards
+  leave play for the rest of the round (they rejoin the discard pile when
+  the next round starts) and their score is dropped. A phone "Leave" does the same.
+- **Pending choices**: if the removed player was choosing a Freeze / Flip Three
+  target or a spare Second Chance recipient, the action card is discarded
+  unused. If they were one of the possible targets they are dropped from the
+  options (if none are left the card is discarded). A Flip Three on them ends.
+- **Turn and dealer**: if it was their turn it passes to the next active player
+  after their old seat. If they were the dealer, the next round is dealt by the
+  player who would have dealt after them (no one is shown as dealer meanwhile).
+  If fewer than 2 players remain the round is abandoned: nobody scores and it
+  goes to round over.
+- **Late joiners**: anyone can join from their phone at any time. They wait,
+  and are seated at the end of the order when the next round starts, with the
+  same score as whoever is in last place. Returning to the lobby seats them at 0.

@@ -3,10 +3,13 @@
 // play.html and board.html, then list it here.
 //
 // A descriptor's `create()` returns an engine with: players[] (objects with
-// id and name), phase ('lobby' while players may join), addPlayer(id, name),
-// removePlayer(id), player(id), start(), reset() and view(playerId), where
-// view(null) is what the shared table screen sees. Rule violations throw
-// GameError (server/game-error.js).
+// id and name), phase ('lobby' before the game starts), waiting[] (late
+// joiners, seated at the next round), addPlayer(id, name) (any phase; after
+// the start it adds to waiting), removePlayer(id) (any phase, mid-round
+// included), player(id), isWaiting(id), start(), reset() and
+// view(playerId), where view(null) is what the shared table screen sees.
+// Rule violations throw GameError (server/game-error.js). See
+// specs/manage-players.md.
 import flip7 from '../games/flip7/index.js';
 import coverYourAssets from '../games/cover-your-assets/index.js';
 import fiveCrowns from '../games/five-crowns/index.js';

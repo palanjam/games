@@ -30,24 +30,40 @@ const isMyPlay = () => myTurn() && state.stage === 'play';
 
 function render() {
   if (!state || me === undefined) return;
-  const joining = !me || !byId(state, me);
+  const waiting = !!me && state.waiting.some((w) => w.id === me);
+  const joining = !waiting && (!me || !byId(state, me));
   // Don't rebuild the join form while someone is typing into it.
-  if (joining && state.phase === 'lobby' && document.getElementById('join')) return;
-  app.innerHTML = joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  // Rebuild it only when the game starts or returns to the lobby (its note
+  // changes), keeping whatever name was typed.
+  const form = document.getElementById('join');
+  const lobby = String(state.phase === 'lobby');
+  if (joining && form && form.dataset.lobby === lobby) return;
+  const typed = form ? document.getElementById('name').value : '';
+  app.innerHTML = waiting ? waitingView() : joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const input = document.getElementById('name');
+  if (typed && input) input.value = typed;
 }
 
 const logo = '<div class="logo"><span>♠</span> HAND &amp; FOOT <span>♥</span></div>';
 
 function joinView() {
-  if (state.phase !== 'lobby') {
-    return `<div class="center">${logo}
-      <p class="muted">A game is in progress.<br>You can join when the table returns to the lobby.</p>
-    </div>`;
-  }
-  return `<form class="center" id="join">${logo}
+  const note = state.phase === 'lobby' ? ''
+    : '<p class="muted">A game is in progress.<br>Join now and you\'ll be dealt in at the start of the next round.</p>';
+  return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">${logo}${note}
     <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
     <button class="big" type="submit">Join the table</button>
   </form>`;
+}
+
+function waitingView() {
+  return `<div class="center">${logo}
+    <p>You're in! You'll be dealt in at the start of the next round.</p>
+    <section class="results">
+      <h3>Scores <small class="muted">highest wins</small></h3>
+      ${scoreGridHtml(state)}
+    </section>
+    <button class="ghost" data-emit="leave">Leave</button>
+  </div>`;
 }
 
 document.addEventListener('submit', (e) => {

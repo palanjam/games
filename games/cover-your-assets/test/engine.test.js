@@ -73,14 +73,13 @@ test('deals five each left of the dealer, flips a discard, and the next player s
   assert.equal(g.view(null).dealerId, 'A');
 });
 
-test('players: max six, lobby only, removal only outside a round', () => {
+test('players: max six, and a blank name is refused', () => {
   const g = new Game({ rng: () => 0 });
   for (const n of ['A', 'B', 'C', 'D', 'E', 'F']) g.addPlayer(n, n);
   assert.throws(() => g.addPlayer('G', 'G'), GameError);
   assert.throws(() => g.addPlayer('H', ' '), GameError);
   g.start();
-  assert.throws(() => g.addPlayer('G', 'G'), GameError);
-  assert.throws(() => g.removePlayer('B'), GameError);
+  assert.throws(() => g.addPlayer('G', 'G'), GameError); // seated plus waiting is capped too
 });
 
 test('removing a player between rounds keeps the dealer in place', () => {
@@ -471,4 +470,223 @@ test('descriptor is registered after Flip 7 with every action', () => {
   const g = cya.create();
   cya.actions.setMode(g, { mode: 'quick' });
   assert.equal(g.mode, 'quick');
+});
+
+// ---- managing players mid-game -------------------------------------------
+
+// Play the round out with whoever is left: always discard the lowest card, or
+// give up a battle. Throws if the game ever stalls.
+function finishRound(g) {
+  for (let i = 0; i < 500 && g.phase === 'playing'; i++) {
+    const actor = g.battle?.toMoveId ?? g.turnId;
+    assert.ok(g.player(actor), 'the actor is seated');
+    if (g.battle) g.fold(actor);
+    else {
+      const hand = g.player(actor).hand;
+      assert.ok(hand.length, 'the actor holds cards');
+      g.discardCard(actor, hand.reduce((l, c) => (c.value < l.value ? c : l)).id);
+    }
+  }
+  assert.notEqual(g.phase, 'playing');
+}
+
+test('joining mid-round goes to waiting, shows in the view and counts toward capacity', () => {
+  const g = setup({ names: ['A', 'B', 'C', 'D', 'E'] });
+  g.addPlayer('W', 'Wendy');
+  assert.equal(g.isWaiting('W'), true);
+  assert.equal(g.player('W'), undefined);
+  assert.deepEqual(g.waiting, [{ id: 'W', name: 'Wendy' }]);
+  assert.deepEqual(g.view(null).waiting, [{ id: 'W', name: 'Wendy' }]);
+  assert.deepEqual(g.view('A').waiting, [{ id: 'W', name: 'Wendy' }]);
+  assert.equal(g.log.at(-1).text, 'Wendy will join next round.');
+  assert.throws(() => g.addPlayer('X', 'Xed'), GameError); // 5 + 1 = 6
+  assert.throws(() => g.addPlayer('Y', ' '), GameError);
+});
+
+test('the next round seats waiting players at last place with their hands dealt', () => {
+  const g = setup({ names: ['A', 'B', 'C'] });
+  g.player('A').score = 30000;
+  g.player('B').score = 10000;
+  g.player('C').score = 20000;
+  g.endRound(); // adds this round's (empty) stacks: scores unchanged
+  g.addPlayer('W', 'Wendy');
+  g.addPlayer('V', 'Val');
+  g.nextRound();
+  assert.deepEqual(g.players.map((p) => p.id), ['A', 'B', 'C', 'W', 'V']);
+  assert.equal(g.player('W').score, 10000);
+  assert.equal(g.player('V').score, 10000);
+  assert.equal(g.player('W').hand.length, 5);
+  assert.deepEqual(g.waiting, []);
+  assert.ok(g.log.some((l) => l.text === 'Wendy joins with $10,000.'));
+});
+
+test('a waiting player lets a one-player table start the next round, and nextRound counts them', () => {
+  const g = setup({ names: ['A', 'B'] });
+  g.removePlayer('B'); // abandons
+  assert.equal(g.phase, 'roundOver');
+  assert.throws(() => g.nextRound(), GameError);
+  g.addPlayer('W', 'Wendy');
+  g.nextRound();
+  assert.equal(g.players.length, 2);
+  assert.equal(g.phase, 'playing');
+});
+
+test('reset seats waiting players at zero', () => {
+  const g = setup({ names: ['A', 'B'] });
+  g.player('A').score = 5000;
+  g.addPlayer('W', 'Wendy');
+  g.reset();
+  assert.equal(g.phase, 'lobby');
+  assert.deepEqual(g.players.map((p) => [p.id, p.score]), [['A', 0], ['B', 0], ['W', 0]]);
+  assert.deepEqual(g.waiting, []);
+});
+
+test('removing a waiting player changes nothing else', () => {
+  const g = setup({ names: ['A', 'B'] });
+  const turn = g.turnId;
+  g.addPlayer('W', 'Wendy');
+  g.removePlayer('W');
+  assert.deepEqual(g.waiting, []);
+  assert.equal(g.isWaiting('W'), false);
+  assert.equal(g.players.length, 2);
+  assert.equal(g.turnId, turn);
+  assert.equal(g.phase, 'playing');
+});
+
+test('removing the player whose turn it is passes the turn on, and the round finishes', () => {
+  const g = setup();
+  assert.equal(g.turnId, 'B');
+  g.removePlayer('B');
+  assert.equal(g.turnId, 'C');
+  assert.equal(g.log.at(-1).text, 'B was removed from the game.');
+  finishRound(g);
+  assert.ok(g.players.every((p) => p.id !== 'B'));
+});
+
+test('removing a player who is not on turn leaves the turn alone', () => {
+  const g = setup();
+  g.removePlayer('C');
+  assert.equal(g.turnId, 'B');
+  g.discardCard('B', g.player('B').hand[0].id);
+  assert.equal(g.turnId, 'A');
+  finishRound(g);
+});
+
+test('removing the dealer: next round is dealt by the player after them', () => {
+  const g = setup(); // A deals
+  g.removePlayer('A');
+  finishRound(g);
+  assert.equal(g.phase, 'roundOver');
+  g.nextRound();
+  assert.equal(g.view(null).dealerId, 'B');
+});
+
+test('removing a non-dealer before the dealer keeps the dealer the same player', () => {
+  const g = setup({ names: ['A', 'B', 'C'] });
+  g.dealerIndex = 2; // C deals
+  g.removePlayer('A');
+  assert.equal(g.view(null).dealerId, 'C');
+});
+
+test('removing the attacker cancels the battle and passes the turn from their seat', () => {
+  const g = setup();
+  table(g, {
+    B: { hand: ['home', 'home', 'cash'], stack: [['boat', 'boat']] },
+    C: { hand: ['silver', 'home', 'cash', 'home'], stack: [['auto', 'auto'], ['home', 'home']] },
+    A: { hand: FILLER },
+  }, [...FILLER, ...FILLER]);
+  g.discard = [];
+  g.challenge('B', 'C', idOf(g, 'B', 'home'));
+  g.respond('C', idOf(g, 'C', 'home'));
+  g.removePlayer('B');
+  assert.equal(g.battle, null);
+  assert.equal(g.player('C').stack.length, 2); // C keeps the set, battle cards are not added
+  assert.equal(top(g, 'C').cards.length, 2);
+  assert.equal(g.discard.length, 1); // C's played card went to the discard
+  assert.equal(g.discard[0].asset, 'home');
+  assert.equal(g.player('C').hand.length, 5); // defender who played draws back up
+  assert.equal(g.turnId, 'C'); // next seat after B
+  finishRound(g);
+});
+
+test('removing the defender cancels the battle; the attacker keeps their cards out of the set', () => {
+  const g = setup();
+  table(g, {
+    B: { hand: ['home', 'cash', 'bank'], stack: [['boat', 'boat']] },
+    C: { hand: ['silver', 'cash'], stack: [['auto', 'auto'], ['home', 'home']] },
+    A: { hand: FILLER },
+  }, [...FILLER, ...FILLER, ...FILLER]);
+  g.discard = [];
+  g.challenge('B', 'C', idOf(g, 'B', 'home'));
+  g.removePlayer('C');
+  assert.equal(g.battle, null);
+  assert.equal(g.discard.length, 1);
+  assert.equal(g.player('B').stack.length, 1);
+  assert.equal(g.player('B').hand.length, 5); // attacker's turn ends and they draw
+  assert.equal(g.turnId, 'A');
+  finishRound(g);
+});
+
+test('removing a bystander during a battle leaves it running', () => {
+  const g = setup();
+  table(g, {
+    B: { hand: ['home', 'cash'], stack: [['boat', 'boat']] },
+    C: { hand: ['home', 'cash'], stack: [['auto', 'auto'], ['home', 'home']] },
+    A: { hand: FILLER },
+  }, FILLER);
+  g.challenge('B', 'C', idOf(g, 'B', 'home'));
+  g.removePlayer('A');
+  assert.equal(g.battle.toMoveId, 'C');
+  g.fold('C');
+  assert.equal(g.battle, null);
+  finishRound(g);
+});
+
+test('removing down to one player abandons the round without scoring', () => {
+  const g = setup({ names: ['A', 'B'] });
+  table(g, { B: { hand: ['cash'], stack: [['gold', 'home']] }, A: { hand: ['cash'], stack: [['home', 'home']] } });
+  g.removePlayer('A');
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.player('B').score, 0);
+  assert.equal(g.player('B').roundScore, 0);
+  assert.ok(g.log.some((l) => l.text === 'Round 1 was abandoned: not enough players.'));
+  assert.equal(g.turnId, null);
+});
+
+test('abandoning a quick game ends it', () => {
+  const g = setup({ names: ['A', 'B'], mode: 'quick' });
+  g.removePlayer('B');
+  assert.equal(g.phase, 'gameOver');
+  assert.deepEqual(g.winners, ['A']);
+});
+
+test('removing a player mid-round never leaks their hand or the deck in views or the log', () => {
+  const g = setup();
+  const secret = g.player('B').hand.map((c) => c.id);
+  g.removePlayer('B');
+  const text = JSON.stringify([g.view('A'), g.view('C'), g.view(null)]);
+  for (const id of secret) assert.ok(!text.includes(`"id":${id},"kind"`), `card ${id}`);
+  assert.ok(g.log.every((l) => !/\bplays|discard/.test(l.text)));
+});
+
+test('a removal in the final empty-hands state ends the round with the right scores', () => {
+  const g = setup();
+  table(g, {
+    B: { hand: ['cash'], stack: [['gold', 'home']] },
+    C: { hand: [], stack: [['home', 'home']] },
+    A: { hand: [], stack: [['home', 'home']] },
+  });
+  g.removePlayer('B'); // turn player leaves, nobody else holds cards and the deck is empty
+  assert.notEqual(g.phase, 'playing');
+  assert.equal(g.player('A').score, 40000);
+});
+
+test('removing the dealer mid-round shows nobody as dealer until the next deal', () => {
+  const g = setup({ names: ['A', 'B', 'C'] });
+  g.dealerIndex = 1; // B deals
+  g.removePlayer('B');
+  assert.equal(g.view(null).dealerId, null, 'the badge does not jump to A');
+  finishRound(g);
+  g.nextRound();
+  assert.equal(g.view(null).dealerId, 'C');
 });

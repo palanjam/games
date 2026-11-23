@@ -74,6 +74,21 @@ was decided for this implementation:
 - Autoplay (for a disconnected turn player) draws from the stock, melds
   nothing, and discards a red 3 if held, else the highest-value natural
   card, else the cheapest wild.
+- Boot and late join (see specs/manage-players.md): the board can remove
+  any seated player at any time, and a phone "leave" does the same.
+  Mid-round the player goes at once; their hand, foot and piles leave play
+  (the stock and discard pile are untouched), their score is dropped, and
+  nothing about their cards is logged. If it was their turn, the turn passes
+  to the next seat in the draw stage. A removed dealer hands the deal to
+  whoever would have dealt after them. With fewer than 2 players left the
+  round is abandoned: no scores, a `null` entry ("–") in everyone's round
+  scores, phase round over (game over after round 4).
+- Players who join after the game starts wait off the table, then are seated
+  at the start of the next round with the lowest current score and "–" for
+  the rounds they missed; the deck count for that round uses the new player
+  count. New game from the lobby seats them at 0. Waiting players count
+  toward the table limit of 6 and toward having enough players for the next
+  round.
 
 ## How the engine works
 

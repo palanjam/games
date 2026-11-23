@@ -63,7 +63,7 @@ export function scoreGridHtml(state) {
   const low = played ? Math.min(...ps.map((p) => p.score)) : null;
   const head = ps.map((p) => `<th title="${esc(p.name)}"><span>${esc(p.name)}</span></th>`).join('');
   const rows = Array.from({ length: state.rounds }, (_, i) => `<tr class="${i === state.round - 1 && state.phase === 'playing' ? 'now' : ''}">
-    <th title="Round ${i + 1}">${rankText(i + 3)}</th>${ps.map((p) => `<td>${p.roundScores[i] ?? ''}</td>`).join('')}</tr>`).join('');
+    <th title="Round ${i + 1}">${rankText(i + 3)}</th>${ps.map((p) => `<td>${p.roundScores[i] === null ? '–' : p.roundScores[i] ?? ''}</td>`).join('')}</tr>`).join('');
   const total = ps.map((p) => `<td class="${p.score === low ? 'low' : ''}">${p.score}</td>`).join('');
   return `<table class="grid-scores">
     <thead><tr><th></th>${head}</tr></thead>

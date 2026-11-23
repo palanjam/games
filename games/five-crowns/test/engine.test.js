@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, GameError, ROUNDS, buildDeck, cardName } from '../engine.js';
+import { bestDiscard } from "../public/melds.js";
 import { SUITS, cardPoints } from '../public/melds.js';
 import fiveCrowns from '../index.js';
 import { games } from '../../../server/games.js';
@@ -112,14 +113,13 @@ test('wild cards score 20 in their round, Jokers always 50', () => {
 
 // ---- players ------------------------------------------------------------
 
-test('players: max seven, lobby only, removal only outside a round', () => {
+test('players: max seven', () => {
   const g = new Game({ rng: () => 0 });
   for (const n of 'ABCDEFG') g.addPlayer(n, n);
   assert.throws(() => g.addPlayer('H', 'H'), GameError);
   assert.throws(() => new Game().addPlayer('X', '  '), GameError);
   g.start();
-  assert.throws(() => g.addPlayer('H', 'H'), GameError);
-  assert.throws(() => g.removePlayer('B'), GameError);
+  assert.throws(() => g.addPlayer('H', 'H'), GameError, 'capacity counts the table');
 });
 
 test('removing the dealer between rounds keeps the rotation going', () => {
@@ -393,4 +393,195 @@ test('Five Crowns is registered with its actions', () => {
   const drawn = g.player(g.turnId).drawnId;
   fiveCrowns.actions.discard(g, { cardId: drawn, goOut: 'yes' }, me); // only `true` means go out
   assert.equal(g.outId, null);
+});
+
+// ---- boot and late join -------------------------------------------------
+
+// The turn player melds three hearts, draws, discards the drawn card and goes out.
+function goOut(g) {
+  const id = g.turnId;
+  g.player(id).hand = cards('5♥ 6♥ 7♥');
+  g.draw(id, 'deck');
+  g.discardCard(id, g.player(id).drawnId, true);
+}
+
+// Plays the current round out with autoplay-style turns until it is over.
+function playOut(g) {
+  for (let i = 0; i < 2000 && g.phase === 'playing'; i++) {
+    const id = g.turnId;
+    g.draw(id, 'deck');
+    
+    const { cardId, points } = bestDiscard(g.player(id).hand, g.wildRank);
+    g.discardCard(id, cardId, points === 0);
+  }
+  assert.notEqual(g.phase, 'playing', 'round never ended');
+}
+
+test('join mid-round waits, shows in the view, and counts against capacity', () => {
+  const g = setup();
+  g.addPlayer('D', 'D');
+  assert.deepEqual(g.waiting, [{ id: 'D', name: 'D' }]);
+  assert.ok(g.isWaiting('D'));
+  assert.equal(g.players.length, 3);
+  assert.deepEqual(g.view('D').waiting, [{ id: 'D', name: 'D' }]);
+  assert.equal(g.log.at(-1).text, 'D will join next round.');
+  for (const n of 'EFG') g.addPlayer(n, n);
+  assert.throws(() => g.addPlayer('H', 'H'), GameError);
+  assert.throws(() => g.addPlayer('X', ' '), GameError);
+});
+
+test('the next round seats waiting players at the highest score, with padded round scores', () => {
+  const g = setup();
+  g.player('A').score = 30; g.player('A').roundScores = [30];
+  g.player('B').score = 10; g.player('B').roundScores = [10];
+  g.player('C').score = 20; g.player('C').roundScores = [20];
+  g.round = 1; g.phase = 'roundOver';
+  g.addPlayer('D', 'D');
+  g.nextRound();
+  assert.deepEqual(g.waiting, []);
+  assert.equal(g.players.at(-1).id, 'D');
+  assert.equal(g.player('D').score, 30);
+  assert.deepEqual(g.player('D').roundScores, [null]);
+  assert.equal(g.player('D').hand.length, g.wildRank);
+  assert.ok(g.log.some((l) => l.text === 'D joins with 30 points.'));
+  playOut(g);
+  assert.deepEqual(g.player('D').roundScores.length, 2);
+});
+
+test('a lone seated player is joined by a waiting one for the next round', () => {
+  const g = setup({ players: ['A', 'B'] });
+  g.removePlayer('A'); // abandons: only B left
+  assert.equal(g.phase, 'roundOver');
+  assert.throws(() => g.nextRound(), GameError);
+  g.addPlayer('C', 'C');
+  g.nextRound();
+  assert.equal(g.players.length, 2);
+  assert.equal(g.player('C').score, 0);
+});
+
+test('reset seats waiting players at zero', () => {
+  const g = setup();
+  g.player('A').score = 50;
+  g.addPlayer('D', 'D');
+  g.reset();
+  assert.deepEqual(g.waiting, []);
+  assert.equal(g.player('D').score, 0);
+  assert.deepEqual(g.player('D').roundScores, []);
+  assert.equal(g.player('A').score, 0);
+});
+
+test('removing a waiting player changes nothing else', () => {
+  const g = setup();
+  g.addPlayer('D', 'D');
+  const log = g.log.length;
+  g.removePlayer('D');
+  assert.deepEqual(g.waiting, []);
+  assert.equal(g.players.length, 3);
+  assert.equal(g.phase, 'playing');
+  assert.equal(g.log.length, log);
+});
+
+test('removing the turn player passes the turn on and the round finishes', () => {
+  const g = setup(); // B plays first
+  const handB = names(g.player('B').hand);
+  assert.equal(g.turnId, 'B');
+  g.removePlayer('B');
+  assert.equal(g.turnId, 'C');
+  assert.equal(g.stage, 'draw');
+  assert.equal(g.log.at(-1).text, 'B was removed from the game.');
+  const seen = JSON.stringify([g.view(null), g.view('A'), g.view('C'), g.log]);
+  assert.ok(!JSON.stringify(g.log).includes(handB));
+  assert.ok(!seen.includes('"id":"B"'));
+  playOut(g);
+  assert.equal(g.players.length, 2);
+  assert.ok(g.players.every((p) => p.roundScores.length === 1));
+});
+
+test('removing a player who is not on turn leaves the turn alone', () => {
+  const g = setup();
+  g.removePlayer('C');
+  assert.equal(g.turnId, 'B');
+  assert.equal(g.stage, 'draw');
+  playOut(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+test('removing the dealer mid-round: the next deal goes to who would have dealt after', () => {
+  const g = setup(); // A deals, B first, rotation B C A
+  g.removePlayer('A');
+  playOut(g);
+  g.nextRound();
+  assert.equal(g.view(null).dealerId, 'B');
+  const g2 = setup();
+  jumpToRound(g2, 2); // dealer B
+  g2.removePlayer('B');
+  playOut(g2);
+  g2.nextRound();
+  assert.equal(g2.view(null).dealerId, 'C');
+});
+
+test('removal during final turns skips them and the round still ends', () => {
+  const g = setup({ deck: dealt(['5♥ 6♥ 7♥', '9♣ 10♠ J♦', '4★ 4♥ Q♠'], '8♦', '3♣ 3♠ 5♣ 8♣ 9♦ K♣') });
+  // B goes out: draws the 8, melds 5-6-7 hearts, discards nothing meldable? use direct state
+  goOut(g);
+  assert.equal(g.turnId, 'C');
+  g.removePlayer('A'); // A had a final turn pending
+  assert.equal(g.turnId, 'C');
+  pass(g);
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.players.length, 2);
+});
+
+test('removing the player who went out: final turns finish and the round ends', () => {
+  const g = setup();
+  goOut(g);
+  assert.equal(g.outId, 'B');
+  assert.equal(g.turnId, 'C');
+  g.removePlayer('B');
+  assert.equal(g.turnId, 'C');
+  pass(g);
+  assert.equal(g.turnId, 'A');
+  pass(g);
+  assert.equal(g.phase, 'roundOver');
+  assert.deepEqual(g.player('A').roundScores.length, 1);
+});
+
+test('removing the turn player in a final turn leaves one player: the round is abandoned', () => {
+  const g = setup({ players: ['A', 'B'] }); // B first
+  goOut(g);
+  assert.equal(g.turnId, 'A');
+  g.removePlayer('A'); // leaves one player: abandoned
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.round, 1);
+});
+
+test('down to one player abandons the round with null scores', () => {
+  const g = setup();
+  g.removePlayer('B');
+  g.removePlayer('C');
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.turnId, null);
+  assert.deepEqual(g.player('A').roundScores, [null]);
+  assert.equal(g.player('A').score, 0);
+  assert.ok(g.log.some((l) => l.text === 'Round 1 was abandoned: not enough players.'));
+  assert.deepEqual(g.view('A').you.hand, []);
+});
+
+test('abandoning the last round ends the game on current scores', () => {
+  const g = setup();
+  jumpToRound(g, ROUNDS);
+  g.player('A').score = 5; g.player('B').score = 9; g.player('C').score = 7;
+  g.removePlayer('A');
+  g.removePlayer(g.turnId === 'B' ? 'C' : 'B');
+  assert.equal(g.phase, 'gameOver');
+  assert.equal(g.winners.length, 1);
+});
+
+test('a removed player drops out of winners and views never show their cards', () => {
+  const g = setup();
+  const ids = g.player('B').hand.map((c) => c.id);
+  g.removePlayer('B');
+  const json = JSON.stringify([g.view(null), g.view('A'), g.log]);
+  assert.ok(!json.includes('"id":"B"'));
+  for (const id of ids) assert.ok(!json.includes(`"id":${id},"suit"`));
 });

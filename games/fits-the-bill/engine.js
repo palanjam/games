@@ -54,6 +54,7 @@ export class Game {
     if (!this.promptTexts || !this.answerTexts) throw new Error('Fits the Bill has no card content.');
     this.targetOverride = null;
     this.players = [];
+    this.waiting = []; // { id, name }: joined after the start, seated next round
     this.logSeq = 0;
     this.log = [];
     this.reset();
@@ -76,6 +77,8 @@ export class Game {
     this.submissions = []; // { id, playerId, card }, in display order
     this.result = null;
     this.winners = [];
+    this.startTarget = null; // fixed when the game starts
+    this.seatWaiting(0);
     for (const p of this.players) this.clearPlayer(p);
   }
 
@@ -88,26 +91,82 @@ export class Game {
   // ---- player management -------------------------------------------------
 
   addPlayer(id, name) {
-    if (this.phase !== 'lobby') throw new GameError('A game is already in progress.');
-    if (this.players.length >= MAX_PLAYERS) throw new GameError(`The table is full (${MAX_PLAYERS} players).`);
+    if (this.players.length + this.waiting.length >= MAX_PLAYERS) throw new GameError(`The table is full (${MAX_PLAYERS} players).`);
     name = String(name ?? '').trim().slice(0, 16);
     if (!name) throw new GameError('Please enter a name.');
     const p = { id, name };
-    this.clearPlayer(p);
-    this.players.push(p);
-    this.addLog(`${name} joined.`);
+    if (this.phase === 'lobby') {
+      this.clearPlayer(p);
+      this.players.push(p);
+      this.addLog(`${name} joined.`);
+    } else {
+      this.waiting.push(p);
+      this.addLog(`${name} will join next round.`);
+    }
     return p;
   }
 
+  isWaiting(id) {
+    return this.waiting.some((w) => w.id === id);
+  }
+
+  // Seat everyone waiting at the end of the seat order. `score` is what they
+  // start with (last place's score, or 0 back in the lobby).
+  seatWaiting(score) {
+    for (const w of this.waiting) {
+      const p = { id: w.id, name: w.name };
+      this.clearPlayer(p);
+      p.score = score;
+      this.players.push(p);
+      if (this.phase !== 'lobby') this.addLog(`${p.name} joins with ${score} points.`);
+    }
+    this.waiting = [];
+  }
+
   removePlayer(id) {
-    if (this.phase === 'playing') throw new GameError('Players can only be removed between rounds.');
+    const wi = this.waiting.findIndex((w) => w.id === id);
+    if (wi >= 0) {
+      const [w] = this.waiting.splice(wi, 1);
+      this.addLog(`${w.name} was removed from the game.`);
+      return;
+    }
     const seat = this.seatOf(id);
     if (seat < 0) return;
+    const mid = this.phase === 'playing';
+    const wasJudge = mid && seat === this.judgeIndex;
     const [p] = this.players.splice(seat, 1);
-    if (seat <= this.judgeIndex) this.judgeIndex--;
     this.answerDiscard.push(...p.hand);
     this.winners = this.winners.filter((w) => w !== id);
-    this.addLog(`${p.name} left.`);
+    if (mid) {
+      // Their played answer leaves play; the judge's seat is handled below.
+      if (this.plays.has(id)) this.answerDiscard.push(this.plays.get(id));
+      this.plays.delete(id);
+      this.playOrder = this.playOrder.filter((x) => x !== id);
+      this.submissions = this.submissions.filter((s) => s.playerId !== id);
+      if (seat < this.judgeIndex) this.judgeIndex--;
+      else if (wasJudge) this.judgeIndex--; // startRound advances to whoever followed them
+    } else if (seat <= this.judgeIndex) this.judgeIndex--;
+    this.addLog(`${p.name} was removed from the game.`);
+    if (!mid) return;
+    if (this.players.length < 2) this.cancelRound(`Round ${this.round} was abandoned: not enough players.`);
+    else if (wasJudge) this.cancelRound(`The judge left: round ${this.round} is cancelled.`);
+    else if (this.stage === 'submit') {
+      if (this.playOrder.length === this.players.length - 1) this.beginJudging();
+    } else if (!this.submissions.length) this.cancelRound(`Round ${this.round} is cancelled: no answers are left.`);
+  }
+
+  // End the round with no result: submitted answers go back to their hands,
+  // the prompt to the discard.
+  cancelRound(message) {
+    for (const [pid, card] of this.plays) this.player(pid)?.hand.push(card);
+    this.plays = new Map();
+    this.playOrder = [];
+    this.submissions = [];
+    if (this.prompt) this.promptDiscard.push(this.prompt);
+    this.result = null;
+    this.stage = null;
+    this.phase = 'roundOver';
+    this.addLog(message);
   }
 
   player(id) {
@@ -119,7 +178,7 @@ export class Game {
   }
 
   get target() {
-    return this.targetOverride ?? defaultTarget(this.players.length);
+    return this.targetOverride ?? this.startTarget ?? defaultTarget(this.players.length);
   }
 
   get judgeId() {
@@ -140,6 +199,7 @@ export class Game {
   start() {
     if (this.phase !== 'lobby') throw new GameError('The game has already started.');
     if (this.players.length < MIN_PLAYERS) throw new GameError(`Need at least ${MIN_PLAYERS} players.`);
+    this.startTarget = defaultTarget(this.players.length);
     this.answerDeck = shuffle(this.answerTexts.map((text, id) => ({ id, text })), this.rng);
     this.promptDeck = shuffle(this.promptTexts.map((text, id) => ({ id, text })), this.rng);
     for (const p of this.players) this.refill(p);
@@ -149,7 +209,8 @@ export class Game {
 
   nextRound() {
     if (this.phase !== 'roundOver') throw new GameError('The round is not over yet.');
-    if (this.players.length < MIN_PLAYERS) throw new GameError(`Need at least ${MIN_PLAYERS} players.`);
+    if (this.players.length + this.waiting.length < MIN_PLAYERS) throw new GameError(`Need at least ${MIN_PLAYERS} players.`);
+    this.seatWaiting(this.players.length ? Math.min(...this.players.map((p) => p.score)) : 0);
     this.startRound();
   }
 
@@ -220,7 +281,7 @@ export class Game {
     if (!sub) throw new GameError('That is not one of the answers.');
     const winner = this.player(sub.playerId);
     winner.won.push(this.prompt.text);
-    winner.score = winner.won.length;
+    winner.score++;
     this.result = {
       winnerId: winner.id,
       submissionId: sub.id,
@@ -298,6 +359,7 @@ export class Game {
             submitted: this.plays.has(you.id) ? { ...this.plays.get(you.id) } : null,
           }
         : null,
+      waiting: this.waiting.map((w) => ({ id: w.id, name: w.name })),
       players: this.players.map((p) => ({
         id: p.id,
         name: p.name,

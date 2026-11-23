@@ -26,13 +26,14 @@ export class Room {
     return `room:${this.code}`;
   }
 
+  // Seated players, and late joiners waiting for the next round.
   playerFor(token) {
     const id = this.tokens.get(token);
-    return id && this.game.player(id) ? id : null;
+    return id && (this.game.player(id) || this.game.isWaiting(id)) ? id : null;
   }
 
   join(name) {
-    if (this.game.players.length >= this.def.maxPlayers) {
+    if (this.game.players.length + this.game.waiting.length >= this.def.maxPlayers) {
       throw new GameError(`The table is full (${this.def.maxPlayers} players).`);
     }
     const id = randomUUID();

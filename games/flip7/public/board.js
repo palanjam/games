@@ -47,6 +47,7 @@ function tableView() {
     <section class="grid">${state.players.map(panel).join('')}</section>
     <aside class="side">
       <div class="mini-join">${info.qrSvg}<span>${esc(info.joinUrl)}</span></div>
+      ${waitingLine()}
       <h3>Scores <small class="muted">to ${state.targetScore}</small></h3>
       <ol class="scores">${scoreRows()}</ol>
       <h3>Table talk</h3>
@@ -54,6 +55,15 @@ function tableView() {
       <button class="ghost" data-emit="newGame" data-confirm="Abandon this game and return to the lobby?">Back to lobby</button>
     </aside>
   </div>`;
+}
+
+function removeBtn(id, confirm) {
+  return `<button class="x" title="Remove" data-emit="kick" data-arg="${esc(JSON.stringify({ playerId: id }))}" data-confirm="${esc(confirm)}">×</button>`;
+}
+
+function waitingLine() {
+  if (!state.waiting?.length) return '';
+  return `<p class="muted joining">Joining next round: ${state.waiting.map((w) => `${esc(w.name)} ${removeBtn(w.id, `Remove ${w.name}?`)}`).join(', ')}</p>`;
 }
 
 function banner() {
@@ -81,6 +91,7 @@ function panel(p) {
   return `<article class="${classes.join(' ')}">
     <div class="head">
       <h2>${esc(p.name)}</h2>
+      ${removeBtn(p.id, `Remove ${p.name} from the game?`)}
       ${STATUS[p.status] ? `<span class="badge ${p.status}">${STATUS[p.status]}</span>` : ''}
       ${state.dealerId === p.id ? '<span class="badge dealer">Dealer</span>' : ''}
       ${p.connected ? '' : '<span class="badge offline">Offline</span>'}

@@ -110,3 +110,34 @@ test('game actions are routed, unknown events ignored, rule errors reported', as
   ann.emit('start');
   assert.equal(await ann.next('problem'), 'Need at least 2 players.');
 });
+
+test('late joiners wait for the next round, keep their place on reconnect, and can be booted', async () => {
+  const code = await createRoom('flip7');
+  const ann = await join(code, 'Ann');
+  await join(code, 'Bob');
+  // Resolves on the first state broadcast that passes `ok`.
+  const until = (s, ok) => new Promise((resolve) => {
+    const on = (st) => { if (ok(st)) { s.off('state', on); resolve(st); } };
+    s.on('state', on);
+  });
+  const started = until(ann, (st) => st.phase === 'playing');
+  ann.emit('start');
+  await started;
+
+  const seen = until(ann, (st) => st.waiting.length > 0);
+  const cat = await join(code, 'Cat');
+  assert.ok(cat.playerId);
+  const s = await seen;
+  assert.deepEqual(s.waiting.map((w) => w.name), ['Cat']);
+  assert.ok(!s.players.some((p) => p.id === cat.playerId));
+
+  cat.close();
+  const again = client(code);
+  await again.next('state');
+  again.emit('hello', { token: cat.token });
+  assert.equal((await again.next('you')).playerId, cat.playerId);
+
+  const told = again.next('you');
+  ann.emit('kick', { playerId: cat.playerId });
+  assert.equal((await told).playerId, null);
+});

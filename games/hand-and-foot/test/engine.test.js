@@ -132,7 +132,7 @@ test('deal: 11-card hands then 11-card feet left of the dealer, one card turned 
   assert.equal(v.discardCount, 1);
 });
 
-test('players: 2 to 6, lobby only, removal only between rounds', () => {
+test('players: 2 to 6, removal between rounds', () => {
   const g = new Game({ rng: () => 0 });
   g.addPlayer('A', 'A');
   assert.throws(() => g.start(), GameError);
@@ -141,13 +141,180 @@ test('players: 2 to 6, lobby only, removal only between rounds', () => {
   assert.throws(() => g.addPlayer('G', 'G'), GameError);
   assert.throws(() => new Game().addPlayer('X', '  '), GameError);
   g.start();
-  assert.throws(() => g.addPlayer('H', 'H'), GameError);
-  assert.throws(() => g.removePlayer('B'), GameError);
   g.phase = 'roundOver';
   g.removePlayer('A'); // the dealer
   g.nextRound();
   assert.equal(g.view(null).dealerId, 'B');
   assert.equal(g.turnId, 'C');
+});
+
+// ---- boot and late join --------------------------------------------------
+
+// Plays the current round to its end with autoplay, checking no card is lost.
+function playOut(g) {
+  const start = g.round;
+  let n = 0;
+  while (g.phase === 'playing' && g.round === start) {
+    for (const p of g.players) p.connected = false;
+    handAndFoot.actions.autoplay(g);
+    assert.ok(++n < 2000, 'round never ended');
+  }
+}
+
+test('joining mid-round goes to waiting, shows in views, and counts toward capacity', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D', 'E'] });
+  g.addPlayer('X', 'Xena');
+  assert.equal(g.isWaiting('X'), true);
+  assert.equal(g.players.length, 5);
+  assert.deepEqual(g.view(null).waiting, [{ id: 'X', name: 'Xena' }]);
+  assert.deepEqual(g.view('A').waiting, [{ id: 'X', name: 'Xena' }]);
+  assert.match(g.log.at(-1).text, /Xena will join next round\./);
+  assert.throws(() => g.addPlayer('Y', 'Y'), /full/);
+  assert.throws(() => g.addPlayer('Z', ' '), GameError);
+});
+
+test('the next round seats waiting players at last place score with null-padded round scores', () => {
+  const g = setup({ players: ['A', 'B', 'C'] });
+  g.addPlayer('X', 'Xena');
+  playOut(g);
+  const low = Math.min(...g.players.map((p) => p.score));
+  g.nextRound();
+  const x = g.player('X');
+  assert.equal(g.players.at(-1), x);
+  assert.equal(x.score, low);
+  assert.deepEqual(x.roundScores, [null]);
+  assert.equal(g.waiting.length, 0);
+  assert.equal(g.isWaiting('X'), false);
+  assert.equal(x.hand.length, 11);
+  assert.equal(x.foot.length, 11);
+  assert.ok(g.log.some((l) => l.text === `Xena joins with ${low} points.`));
+  assert.equal(g.view('A').players.find((p) => p.id === 'X').roundScores[0], null);
+  playOut(g);
+  assert.equal(g.player('X').roundScores.length, 2);
+});
+
+test('waiting players count toward having enough players for the next round', () => {
+  const g = setup();
+  g.addPlayer('X', 'Xena');
+  g.removePlayer('A');
+  assert.equal(g.players.length, 1);
+  assert.equal(g.phase, 'roundOver'); // abandoned
+  g.nextRound();
+  assert.equal(g.players.length, 2);
+  assert.equal(g.phase, 'playing');
+});
+
+test('reset seats waiting players at zero', () => {
+  const g = setup();
+  g.addPlayer('X', 'Xena');
+  playOut(g);
+  g.reset();
+  assert.equal(g.phase, 'lobby');
+  assert.equal(g.waiting.length, 0);
+  assert.equal(g.player('X').score, 0);
+  assert.deepEqual(g.player('X').roundScores, []);
+});
+
+test('removing a waiting player changes nothing else', () => {
+  const g = setup();
+  g.addPlayer('X', 'Xena');
+  const turn = g.turnId;
+  g.removePlayer('X');
+  assert.equal(g.waiting.length, 0);
+  assert.equal(g.turnId, turn);
+  assert.equal(g.players.length, 2);
+});
+
+test('removing the player on turn passes the turn on in a draw stage and the round finishes', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'] });
+  const before = g.turnId;
+  g.draw(before);
+  const seat = g.seatOf(before);
+  const next = g.players[(seat + 1) % 4].id;
+  g.removePlayer(before);
+  assert.equal(g.players.length, 3);
+  assert.equal(g.turnId, next);
+  assert.equal(g.stage, 'draw');
+  assert.ok(g.log.some((l) => l.text.endsWith('was removed from the game.')));
+  playOut(g);
+  assert.notEqual(g.phase, 'playing');
+});
+
+test('removing a player not on turn keeps the turn, and their cards leave play', () => {
+  const g = setup({ players: ['A', 'B', 'C'] });
+  const turn = g.turnId;
+  const other = g.players.find((p) => p.id !== turn).id;
+  const gone = new Set([...g.player(other).hand, ...g.player(other).foot].map((c) => c.id));
+  g.removePlayer(other);
+  assert.equal(g.turnId, turn);
+  const inPlay = new Set([...g.stock, ...g.discard, ...g.players.flatMap((p) => [...p.hand, ...p.foot, ...p.piles.flatMap((q) => q.cards)])].map((c) => c.id));
+  for (const id of gone) assert.ok(!inPlay.has(id));
+  playOut(g);
+  assert.notEqual(g.phase, 'playing');
+});
+
+test('removing the dealer mid-round: the player who would have dealt next deals next', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'] }); // A deals first? rng 0 -> dealerIndex 0
+  const dealer = g.players[g.dealerIndex].id;
+  const after = g.players[(g.dealerIndex + 1) % 4].id;
+  g.removePlayer(dealer);
+  playOut(g);
+  if (g.phase === 'roundOver') {
+    g.nextRound();
+    assert.equal(g.players[g.dealerIndex].id, after);
+  }
+});
+
+test('removing the last-seat dealer wraps the rotation', () => {
+  const g = setup({ players: ['A', 'B', 'C'] });
+  g.dealerIndex = 2;
+  g.removePlayer('C');
+  g.phase = 'roundOver';
+  g.nextRound();
+  assert.equal(g.players[g.dealerIndex].id, 'A');
+});
+
+test('removing down to one player abandons the round', () => {
+  const g = setup();
+  g.removePlayer('A');
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.turnId, null);
+  assert.deepEqual(g.player('B').roundScores, [null]);
+  assert.equal(g.player('B').score, 0);
+  assert.ok(g.log.some((l) => l.text === 'Round 1 was abandoned: not enough players.'));
+  assert.throws(() => g.nextRound(), GameError);
+});
+
+test('abandoning the last round ends the game', () => {
+  const g = setup({ players: ['A', 'B'] });
+  g.round = ROUNDS;
+  g.player('A').score = 10;
+  g.player('B').score = 20;
+  g.removePlayer('A');
+  assert.equal(g.phase, 'gameOver');
+  assert.deepEqual(g.winners, ['B']);
+  assert.equal(g.log.at(-1).text, 'B wins with 20 points!');
+});
+
+test('removing a player in roundOver and lobby still works', () => {
+  const g = setup({ players: ['A', 'B', 'C'] });
+  g.phase = 'roundOver';
+  g.removePlayer('B');
+  assert.equal(g.players.length, 2);
+  const l = new Game();
+  l.addPlayer('A', 'A');
+  l.removePlayer('A');
+  assert.equal(l.players.length, 0);
+});
+
+test('no view or log leaks a removed players cards', () => {
+  const g = setup({ players: ['A', 'B', 'C'] });
+  const victim = g.players.find((p) => p.id !== g.turnId);
+  const secret = JSON.stringify([...victim.hand, ...victim.foot]);
+  g.removePlayer(victim.id);
+  const seen = JSON.stringify([g.view(null), g.view('A'), g.log]);
+  for (const c of [...victim.hand, ...victim.foot]) assert.ok(!seen.includes(`"id":${c.id},"rank"`), secret);
+  assert.ok(!g.view(null).players.some((p) => p.id === victim.id));
 });
 
 // ---- drawing ------------------------------------------------------------
@@ -798,4 +965,14 @@ test('Hand and Foot is registered with its actions', () => {
   assert.throws(() => handAndFoot.actions.meld(g, {}, me), /Choose some cards/);
   handAndFoot.actions.discard(g, { cardId: g.player(turn).hand[0].id }, me);
   assert.notEqual(g.turnId, turn);
+});
+
+// The table is a grid whose named areas cover every cell, so a stray element
+// between them lands in an implicit row off the bottom of the screen.
+test('the board puts the "Joining next round" line inside the sidebar', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../public/board.js', import.meta.url), 'utf8');
+  const aside = src.indexOf('<aside class="side">');
+  const line = src.indexOf('Joining next round');
+  assert.ok(aside >= 0 && line > aside && line < src.indexOf('</aside>', aside));
 });

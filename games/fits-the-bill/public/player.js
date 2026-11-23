@@ -20,17 +20,22 @@ const key = (s) => (s ? `${s.round}:${s.phase}:${s.stage}` : '');
 
 function render() {
   if (!state || me === undefined) return;
-  const joining = !me || !byId(state, me);
-  if (joining && state.phase === 'lobby' && document.getElementById('join')) return;
-  app.innerHTML = joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const joining = !me || (!byId(state, me) && !waitingMe());
+  // Keep the join form while someone types; rebuild it (keeping the name)
+  // only when the game starts or returns to the lobby, as its note changes.
+  const form = document.getElementById('join');
+  if (joining && form?.dataset.lobby === String(state.phase === 'lobby')) return;
+  const typed = form ? document.getElementById('name')?.value : '';
+  app.innerHTML = joining ? joinView() : waitingMe() ? waitingView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const input = document.getElementById('name');
+  if (typed && input) input.value = typed;
 }
 
+const waitingMe = () => (state.waiting ?? []).some((w) => w.id === me);
+
 function joinView() {
-  if (state.phase !== 'lobby') {
-    return `<div class="center">${logoHtml()}
-      <p class="muted">A game is in progress.<br>You can join when the table returns to the lobby.</p></div>`;
-  }
-  return `<form class="center" id="join">${logoHtml()}
+  const note = state.phase === 'lobby' ? '' : `<p class="muted">A game is in progress.<br>You'll be dealt in at the start of the next round.</p>`;
+  return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">${logoHtml()}${note}
     <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
     <button class="big" type="submit">Join the table</button></form>`;
 }
@@ -39,6 +44,13 @@ document.addEventListener('submit', (e) => {
   e.preventDefault();
   socket.emit('join', { name: document.getElementById('name').value });
 });
+
+function waitingView() {
+  return `<div class="center">${logoHtml()}
+    <p>You're in! You'll be dealt in at the start of the next round.</p>
+    <h3 class="sec">Scores</h3>${scoresHtml(state, esc)}
+    <button class="ghost" data-emit="leave">Leave</button></div>`;
+}
 
 function lobbyView() {
   const n = state.players.length;
@@ -104,8 +116,11 @@ function overView() {
   let head = '';
   if (over) {
     const names = state.winners.map(nameOf).join(' & ');
-    head = `<div class="winner-banner">🏆 ${names} win${state.winners.length > 1 ? '' : 's'}!</div>`;
-  } else if (r) head = `<div class="status">${nameOf(r.winnerId)} wins the round</div>`;
+    head = state.winners.length
+      ? `<div class="winner-banner">🏆 ${names} win${state.winners.length > 1 ? '' : 's'}!</div>`
+      : '<div class="status">Game over</div>';
+  } else if (!r) head = `<div class="status">Round ${state.round} was cancelled</div>`;
+  else if (byId(state, r.winnerId)) head = `<div class="status">${nameOf(r.winnerId)} wins the round</div>`;
   const plays = r ? `<div class="result">${r.plays.map((p) => `<div class="play ${p.submissionId === r.submissionId ? 'winner' : ''}">
       ${answerHtml(p.text, esc, p.submissionId === r.submissionId ? 'win' : '')}
       <span class="who">${nameOf(p.playerId)}${p.submissionId === r.submissionId ? ' · winner' : ''}</span></div>`).join('')}</div>` : '';

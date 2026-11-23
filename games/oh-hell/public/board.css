@@ -64,3 +64,7 @@ button.big { font-size: 1.8rem; padding: 1rem 3rem; }
 .side .grid-scores { font-size: 0.85rem; }
 .side .scores { min-height: 0; overflow: auto; }
 .side .log { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+
+.panel .head .x, .waiting .x { background: transparent; color: var(--muted); padding: 0 0.4rem; font-size: 1.2rem; }
+.panel .head .x { margin-left: auto; }
+.waiting { grid-column: 1 / -1; margin: 0.4rem 0; }

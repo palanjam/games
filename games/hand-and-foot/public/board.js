@@ -61,12 +61,15 @@ function tableView() {
       ${over ? `<h3>Round ${state.round}</h3>${roundTableHtml(state)}` : ''}
       <h3>Scores <small class="muted">highest wins</small></h3>
       ${scoreGridHtml(state)}
+      ${state.waiting.length ? `<p class="muted waiting">Joining next round: ${state.waiting.map((w) => `${esc(w.name)} ${removeBtn(w.id, `Remove ${w.name}?`)}`).join(', ')}</p>` : ''}
       ${over ? '' : `<h3>Table talk</h3>
       <div class="log">${state.log.slice(-8).reverse().map((l) => `<div>${esc(l.text)}</div>`).join('')}</div>`}
       <button class="ghost" data-emit="newGame" data-confirm="Abandon this game and return to the lobby?">Back to lobby</button>
     </aside>
   </div>`;
 }
+
+const removeBtn = (id, confirmText) => `<button class="x" title="Remove" data-emit="kick" data-arg="${esc(JSON.stringify({ playerId: id }))}" data-confirm="${esc(confirmText)}">×</button>`;
 
 function banner() {
   if (state.phase === 'gameOver') {
@@ -76,7 +79,7 @@ function banner() {
       <button data-emit="newGame">New game</button>`;
   }
   if (state.phase === 'roundOver') {
-    const out = state.outId ? `${name(state.outId)} went out. ` : 'The stock ran out. ';
+    const out = state.abandoned ? 'Not enough players. ' : state.outId ? `${name(state.outId)} went out. ` : 'The stock ran out. ';
     return `${out}Round ${state.round} over <button data-emit="nextRound">Next round ▶</button>`;
   }
   const actor = byId(state, state.turnId);
@@ -103,6 +106,7 @@ function panel(p) {
   return `<article class="${classes.join(' ')}">
     <div class="head">
       <h2>${esc(p.name)}</h2>
+      ${removeBtn(p.id, `Remove ${p.name} from the game?`)}
       ${badges(state, p)}
       <span class="hs">${p.score}</span>
     </div>

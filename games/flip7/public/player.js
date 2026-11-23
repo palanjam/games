@@ -20,23 +20,27 @@ socket.on('state', (s) => {
 
 function render() {
   if (!state || me === undefined) return;
-  const joining = !me || !byId(state, me);
+  const waiting = !!me && state.waiting?.some((w) => w.id === me);
+  const joining = !me || (!byId(state, me) && !waiting);
   // Don't rebuild the join form while someone is typing into it.
-  if (joining && state.phase === 'lobby' && document.getElementById('join')) return;
+  // Keep the join form while someone types; rebuild it (keeping the name)
+  // only when the game starts or returns to the lobby, as its note changes.
+  const form = document.getElementById('join');
+  if (joining && form?.dataset.lobby === String(state.phase === 'lobby')) return;
+  const typed = form ? document.getElementById('name')?.value : '';
   beginCards(state);
-  app.innerHTML = joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  app.innerHTML = joining ? joinView() : waiting ? waitingView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const input = document.getElementById('name');
+  if (typed && input) input.value = typed;
   endCards();
 }
 
 function joinView() {
-  if (state.phase !== 'lobby') {
-    return `<div class="center">
-      <div class="logo">FLIP <span>7</span></div>
-      <p class="muted">A game is in progress.<br>You can join when the table returns to the lobby.</p>
-    </div>`;
-  }
-  return `<form class="center" id="join">
+  const note = state.phase === 'lobby' ? ''
+    : '<p class="muted">A game is in progress.<br>Join now and you\'ll be dealt in at the start of the next round.</p>';
+  return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">
     <div class="logo">FLIP <span>7</span></div>
+    ${note}
     <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
     <button class="big" type="submit">Join the table</button>
   </form>`;
@@ -47,6 +51,16 @@ document.addEventListener('submit', (e) => {
   e.preventDefault();
   socket.emit('join', { name: document.getElementById('name').value });
 });
+
+function waitingView() {
+  const ranked = [...state.players].sort((a, b) => b.score - a.score);
+  return `<div class="center">
+    <div class="logo">FLIP <span>7</span></div>
+    <p>You're in! You'll be dealt in at the start of the next round.</p>
+    <ul class="names">${ranked.map((q) => `<li>${esc(q.name)} <b>${q.score}</b></li>`).join('')}</ul>
+    <button class="ghost" data-emit="leave">Leave</button>
+  </div>`;
+}
 
 function lobbyView() {
   const n = state.players.length;

@@ -59,7 +59,7 @@ export function scoreGridHtml(state) {
     const now = i === state.round - 1 && state.phase === 'playing';
     return `<tr class="${now ? 'now' : ''}"><th title="Round ${i + 1}">${i + 1}</th>${ps.map((p) => {
       const r = p.roundScores[i];
-      return `<td class="${r && r.tricks === r.bid ? 'made' : ''}">${r ? r.points : ''}</td>`;
+      return `<td class="${r && r.tricks === r.bid ? 'made' : ''}">${r ? r.points : i < p.roundScores.length ? '–' : ''}</td>`;
     }).join('')}</tr>`;
   }).join('');
   const total = ps.map((p) => `<td class="${p.score === top ? 'top' : ''}">${p.score}</td>`).join('');

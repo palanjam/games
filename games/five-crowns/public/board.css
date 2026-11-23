@@ -11,7 +11,7 @@ body { height: 100vh; overflow: hidden; }
 .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; max-width: 80vw; }
 .chips li { background: var(--panel); padding: 0.6rem 0.6rem 0.6rem 1.2rem; border-radius: 999px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
 .chips li.muted { padding-right: 1.2rem; font-weight: 400; }
-.chips .x { background: transparent; color: var(--muted); padding: 0 0.5rem; font-size: 1.4rem; }
+.chips .x, .panel .x, .joining .x { background: transparent; color: var(--muted); padding: 0 0.5rem; font-size: 1.4rem; }
 button.big { font-size: 1.8rem; padding: 1rem 3rem; }
 
 /* ---- table -------------------------------------------------------------- */

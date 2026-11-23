@@ -55,7 +55,7 @@ function tableView() {
       <div class="trumpbox">${state.trumpCard ? cardHtml(state.trumpCard) : ''}${trumpHtml(state)}</div>
       <div class="trick">${over ? roundBox() : trickBox()}</div>
     </section>
-    <section class="grid">${state.players.map(panel).join('')}</section>
+    <section class="grid">${state.players.map(panel).join('')}${waitingLine()}</section>
     <aside class="side">
       <div class="mini-join">${esc(info.joinUrl)}</div>
       <h3>Scores</h3>
@@ -100,13 +100,21 @@ function banner() {
   return `${text}${hook}${help}`;
 }
 
+const kickBtn = (p, confirm) => `<button class="x" title="Remove" data-emit="kick" data-arg="${esc(JSON.stringify({ playerId: p.id }))}" data-confirm="${esc(confirm)}">×</button>`;
+
+function waitingLine() {
+  const w = state.waiting ?? [];
+  if (!w.length) return '';
+  return `<p class="waiting muted">Joining next round: ${w.map((p) => `${esc(p.name)} ${kickBtn(p, `Remove ${p.name}?`)}`).join(', ')}</p>`;
+}
+
 function panel(p) {
   const classes = ['panel'];
   if (state.phase === 'playing' && state.turnId === p.id) classes.push('turn');
   if (state.winners.includes(p.id)) classes.push('winner');
   const on = p.bid !== null && p.bid !== undefined && p.tricks === p.bid ? 'on' : '';
   return `<article class="${classes.join(' ')}">
-    <div class="head"><h2>${esc(p.name)}</h2>${badges(state, p)}<span class="hs">${p.score}</span></div>
+    <div class="head"><h2>${esc(p.name)}</h2>${badges(state, p)}<span class="hs">${p.score}</span>${kickBtn(p, `Remove ${p.name} from the game?`)}</div>
     <div class="stats"><span>Bid <b>${p.bid ?? '–'}</b></span><span class="${on}">Won <b>${p.tricks ?? 0}</b></span><span><b>${p.cardCount}</b> cards</span></div>
   </article>`;
 }

@@ -64,6 +64,7 @@ export class Game {
   constructor({ rng = Math.random, deck = null } = {}) {
     this.rng = rng;
     this.players = [];
+    this.waiting = []; // joined after the start; seated at the next round
     this.pattern = DEFAULT_PATTERN;
     this.logSeq = 0;
     this.log = [];
@@ -75,6 +76,7 @@ export class Game {
     this.phase = 'lobby'; // lobby | playing | roundOver | gameOver
     this.round = 0;
     this.sizes = [];
+    this.roundSize = null; // cards dealt this round, fixed when it is dealt
     this.nextDeck = deck ? [...deck] : null;
     this.deck = [];
     this.dealerIndex = -1;
@@ -84,6 +86,8 @@ export class Game {
     this.trick = [];
     this.lastTrick = null;
     this.winners = [];
+    for (const w of this.waiting) this.players.push(this.newPlayer(w.id, w.name));
+    this.waiting = [];
     for (const p of this.players) {
       p.score = 0;
       p.roundScores = [];
@@ -92,7 +96,7 @@ export class Game {
   }
 
   get handSize() {
-    return this.round > 0 ? this.sizes[this.round - 1] : null;
+    return this.round > 0 ? this.roundSize : null;
   }
 
   get rounds() {
@@ -113,26 +117,98 @@ export class Game {
 
   // ---- player management -------------------------------------------------
 
-  addPlayer(id, name) {
-    if (this.phase !== 'lobby') throw new GameError('A game is already in progress.');
-    if (this.players.length >= MAX_PLAYERS) throw new GameError(`The table is full (${MAX_PLAYERS} players).`);
-    name = String(name ?? '').trim().slice(0, 16);
-    if (!name) throw new GameError('Please enter a name.');
+  newPlayer(id, name) {
     const p = { id, name, score: 0, roundScores: [] };
     this.clearRound(p);
+    return p;
+  }
+
+  addPlayer(id, name) {
+    if (this.players.length + this.waiting.length >= MAX_PLAYERS) throw new GameError(`The table is full (${MAX_PLAYERS} players).`);
+    name = String(name ?? '').trim().slice(0, 16);
+    if (!name) throw new GameError('Please enter a name.');
+    if (this.phase !== 'lobby') {
+      this.waiting.push({ id, name });
+      this.addLog(`${name} will join next round.`);
+      return { id, name };
+    }
+    const p = this.newPlayer(id, name);
     this.players.push(p);
     this.addLog(`${name} joined.`);
     return p;
   }
 
+  isWaiting(id) {
+    return this.waiting.some((w) => w.id === id);
+  }
+
+  // Waiting players take the last seats, level with last place.
+  seatWaiting() {
+    for (const w of this.waiting) {
+      const score = this.players.length ? Math.min(...this.players.map((p) => p.score)) : 0;
+      const p = this.newPlayer(w.id, w.name);
+      p.score = score;
+      p.roundScores = Array.from({ length: this.round }, () => null);
+      this.players.push(p);
+      this.addLog(`${w.name} joins with ${score} points.`);
+    }
+    this.waiting = [];
+  }
+
   removePlayer(id) {
-    if (this.phase === 'playing') throw new GameError('Players can only be removed between rounds.');
+    const w = this.waiting.findIndex((x) => x.id === id);
+    if (w >= 0) {
+      const [gone] = this.waiting.splice(w, 1);
+      this.addLog(`${gone.name} was removed from the game.`);
+      return;
+    }
     const seat = this.seatOf(id);
     if (seat < 0) return;
+    if (this.phase === 'playing') return this.removeMidRound(seat);
     const [p] = this.players.splice(seat, 1);
     if (seat <= this.dealerIndex) this.dealerIndex--;
-    this.winners = this.winners.filter((w) => w !== id);
+    this.winners = this.winners.filter((x) => x !== id);
     this.addLog(`${p.name} left.`);
+  }
+
+  // The round carries on without them; their hand leaves play.
+  removeMidRound(seat) {
+    const [p] = this.players.splice(seat, 1);
+    const n = this.players.length;
+    const wasTurn = this.turnId === p.id;
+    if (seat < this.dealerIndex) this.dealerIndex--;
+    else if (seat === this.dealerIndex) this.dealerIndex = n ? (seat - 1 + n) % n : -1; // the previous seat deals now
+    this.trick = this.trick.filter((x) => x.playerId !== p.id);
+    if (this.lastTrick) {
+      this.lastTrick.plays = this.lastTrick.plays.filter((x) => x.playerId !== p.id);
+      if (this.lastTrick.winnerId === p.id) this.lastTrick = null;
+    }
+    this.addLog(`${p.name} was removed from the game.`);
+    if (n < 2) return this.abandonRound();
+    if (this.stage === 'bid') {
+      if (this.players.every((q) => q.bid !== null)) {
+        this.stage = 'play';
+        this.turnId = this.players[(this.dealerIndex + 1) % n].id;
+      } else if (wasTurn) {
+        this.turnId = this.players[seat % n].id;
+      }
+      return;
+    }
+    if (wasTurn) this.turnId = this.players[seat % n].id;
+    if (this.trick.length >= n) this.finishTrick();
+  }
+
+  abandonRound() {
+    this.turnId = null;
+    this.stage = null;
+    this.trick = [];
+    for (const p of this.players) {
+      this.clearRound(p);
+      p.roundScores.push(null);
+    }
+    this.addLog(`Round ${this.round} was abandoned: not enough players.`);
+    if (this.round >= this.sizes.length) this.finishGame();
+    else this.phase = 'roundOver';
   }
 
   player(id) {
@@ -167,7 +243,8 @@ export class Game {
 
   nextRound() {
     if (this.phase !== 'roundOver') throw new GameError('The round is not over yet.');
-    if (this.players.length < MIN_PLAYERS) throw new GameError(`Need at least ${MIN_PLAYERS} players.`);
+    if (this.players.length + this.waiting.length < MIN_PLAYERS) throw new GameError(`Need at least ${MIN_PLAYERS} players.`);
+    this.seatWaiting();
     this.startRound();
   }
 
@@ -181,6 +258,7 @@ export class Game {
     this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
     this.deck = this.nextDeck ?? shuffle(buildDeck(), this.rng);
     this.nextDeck = null;
+    this.roundSize = Math.min(this.sizes[this.round - 1], maxHand(this.players.length));
     this.trick = [];
     this.lastTrick = null;
     for (const p of this.players) this.clearRound(p);
@@ -293,15 +371,20 @@ export class Game {
       p.score += points;
     }
     if (this.round >= this.sizes.length) {
-      this.phase = 'gameOver';
-      const best = Math.max(...this.players.map((p) => p.score));
-      this.winners = this.players.filter((p) => p.score === best).map((p) => p.id);
-      const names = this.winners.map((id) => this.player(id).name).join(' & ');
-      this.addLog(`${names} win${this.winners.length > 1 ? '' : 's'} with ${best} points!`);
+      this.finishGame();
     } else {
       this.phase = 'roundOver';
       this.addLog(`Round ${this.round} over.`);
     }
+  }
+
+  finishGame() {
+    this.phase = 'gameOver';
+    if (!this.players.length) return;
+    const best = Math.max(...this.players.map((p) => p.score));
+    this.winners = this.players.filter((p) => p.score === best).map((p) => p.id);
+    const names = this.winners.map((id) => this.player(id).name).join(' & ');
+    this.addLog(`${names} win${this.winners.length > 1 ? '' : 's'} with ${best} points!`);
   }
 
   // ---- views -------------------------------------------------------------
@@ -338,6 +421,7 @@ export class Game {
       forbiddenBid: this.forbiddenBid,
       outId: null,
       winners: [...this.winners],
+      waiting: this.waiting.map((w) => ({ id: w.id, name: w.name })),
       log: [...this.log],
       you: you
         ? {
@@ -351,7 +435,7 @@ export class Game {
         name: p.name,
         connected: p.connected ?? true,
         score: p.score,
-        roundScores: p.roundScores.map((s) => ({ ...s })),
+        roundScores: p.roundScores.map((s) => (s ? { ...s } : null)),
         cardCount: p.hand.length,
         bid: p.bid,
         tricks: p.tricks,

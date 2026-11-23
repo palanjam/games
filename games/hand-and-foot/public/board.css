@@ -116,3 +116,4 @@ button.big { font-size: 1.8rem; padding: 1rem 3rem; }
 .round-table thead td { color: var(--muted); font-size: 0.75rem; }
 .round-table .neg { color: var(--danger); }
 .round-table .tot { font-weight: 900; color: var(--accent); }
+.panel .head .x, .waiting .x { background: transparent; color: var(--muted); padding: 0 0.4rem; font-size: 1.2rem; }

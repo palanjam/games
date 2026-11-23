@@ -27,8 +27,24 @@ in [specs/fits-the-bill.md](../../specs/fits-the-bill.md).
 - Winning is immediate on the pick that reaches the target; the final
   round's result is still shown.
 - The target set in the lobby is kept when the game is reset to the lobby.
-- Players can only leave between rounds, and the next round needs at least 3
-  players.
+- The next round needs at least 3 players, counting those waiting to join.
+- Booting or leaving mid-round (see specs/manage-players.md): the player goes
+  at once, their hand and any played answer leave play, and their score is
+  dropped. Non-judge during the submit stage: if every remaining non-judge has
+  now played, judging begins. Judge stage: their answer is removed; if none
+  are left the round is cancelled. If the judge goes the round is cancelled
+  (answers return to hands, prompt discarded, no winner, "The judge left"),
+  and the judge role passes to the seat after them. Under 2 players the round
+  is abandoned instead.
+- Late joiners (from a phone, any phase) wait and are seated at the end of the
+  seat order when the next round starts, with the lowest current score and no
+  won prompts. Back in the lobby they are seated at 0. They count toward the
+  table limit of 10 while waiting.
+- The target is fixed when the game starts (or by `setTarget`), so joins and
+  boots do not move it. Score is stored on its own, not derived from the won
+  prompts.
+- Fits the Bill has no per-round score grid, so nothing is padded for late
+  joiners.
 - When the answer deck runs out, the discards are shuffled into a new deck.
   Prompts are recycled the same way.
 - Autoplay: when a non-judge is disconnected the board can play a random

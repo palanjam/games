@@ -30,20 +30,30 @@ const myDiscard = () => myTurn() && state.stage === 'discard';
 function render() {
   if (!state || me === undefined) return;
   const joining = !me || !byId(state, me);
+  const waiting = joining && state.waiting.some((w) => w.id === me);
   // Don't rebuild the join form while someone is typing into it.
-  if (joining && state.phase === 'lobby' && document.getElementById('join')) return;
-  app.innerHTML = joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  // Rebuild it only when the game starts or returns to the lobby (its note
+  // changes), keeping whatever name was typed.
+  const form = document.getElementById('join');
+  const lobby = String(state.phase === 'lobby');
+  if (joining && !waiting && form && form.dataset.lobby === lobby) return;
+  const typed = form ? document.getElementById('name').value : '';
+  app.innerHTML = waiting ? waitingView() : joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const input = document.getElementById('name');
+  if (typed && input) input.value = typed;
 }
 
 const logo = '<div class="logo"><span>♛</span> FIVE CROWNS <span>♛</span></div>';
 
 function joinView() {
   if (state.phase !== 'lobby') {
-    return `<div class="center">${logo}
-      <p class="muted">A game is in progress.<br>You can join when the table returns to the lobby.</p>
-    </div>`;
+    return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">${logo}
+      <p class="muted">A game is in progress.<br>You'll be dealt in at the start of the next round.</p>
+      <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
+      <button class="big" type="submit">Join the table</button>
+    </form>`;
   }
-  return `<form class="center" id="join">${logo}
+  return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">${logo}
     <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
     <button class="big" type="submit">Join the table</button>
   </form>`;
@@ -54,6 +64,16 @@ document.addEventListener('submit', (e) => {
   e.preventDefault();
   socket.emit('join', { name: document.getElementById('name').value });
 });
+
+function waitingView() {
+  const ranked = [...state.players].sort((a, b) => a.score - b.score);
+  return `<div class="center">${logo}
+    <p>You're in! You'll be dealt in at the start of the next round.</p>
+    <p class="muted">Scores so far, lowest wins</p>
+    <ul class="names">${ranked.map((q) => `<li>${esc(q.name)} · ${q.score}</li>`).join('')}</ul>
+    <button class="ghost" data-emit="leave">Leave</button>
+  </div>`;
+}
 
 function lobbyView() {
   const n = state.players.length;

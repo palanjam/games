@@ -19,24 +19,30 @@ socket.on('state', (s) => {
 });
 
 const myTurn = () => state.phase === 'playing' && state.turnId === me;
+const waiting = () => !!me && (state.waiting ?? []).some((w) => w.id === me);
 const name = (id) => esc(byId(state, id)?.name ?? '?');
 
 function render() {
   if (!state || me === undefined) return;
-  const joining = !me || !byId(state, me);
-  if (joining && state.phase === 'lobby' && document.getElementById('join')) return;
-  app.innerHTML = joining ? joinView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const joining = !me || (!byId(state, me) && !waiting());
+  // Keep the join form while someone types; rebuild it (keeping the name)
+  // only when the game starts or returns to the lobby, as its note changes.
+  const form = document.getElementById('join');
+  if (joining && form?.dataset.lobby === String(state.phase === 'lobby')) return;
+  const typed = form ? document.getElementById('name')?.value : '';
+  app.innerHTML = joining ? joinView() : waiting() ? waitingView() : state.phase === 'lobby' ? lobbyView() : gameView();
+  const input = document.getElementById('name');
+  if (typed && input) input.value = typed;
 }
 
 const logo = '<div class="logo"><span>♠</span> OH HELL <span>♥</span></div>';
 
 function joinView() {
-  if (state.phase !== 'lobby') {
-    return `<div class="center">${logo}
-      <p class="muted">A game is in progress.<br>You can join when the table returns to the lobby.</p>
-    </div>`;
-  }
-  return `<form class="center" id="join">${logo}
+  const note = state.phase === 'lobby'
+    ? ''
+    : '<p class="muted">A game is in progress.<br>Join now and you\'ll be dealt in at the start of the next round.</p>';
+  return `<form class="center" id="join" data-lobby="${state.phase === 'lobby'}">${logo}
+    ${note}
     <input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname" autofocus>
     <button class="big" type="submit">Join the table</button>
   </form>`;
@@ -66,6 +72,15 @@ function lobbyView() {
     ${patternPicker()}
     <button class="big" data-emit="start" ${n < 3 ? 'disabled' : ''}>Start game (${n} player${n === 1 ? '' : 's'})</button>
     <p class="hint">Oh Hell needs 3 to 7 players.</p>
+    <button class="ghost" data-emit="leave">Leave</button>
+  </div>`;
+}
+
+function waitingView() {
+  return `<div class="center">${logo}
+    <p>You're in! You'll be dealt in at the start of the next round.</p>
+    <p class="muted">Current scores</p>
+    <ul class="names">${[...state.players].sort((a, b) => b.score - a.score).map((p) => `<li>${esc(p.name)} <b>${p.score}</b></li>`).join('')}</ul>
     <button class="ghost" data-emit="leave">Leave</button>
   </div>`;
 }

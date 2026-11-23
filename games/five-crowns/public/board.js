@@ -14,7 +14,8 @@ function render() {
 }
 
 const logo = (cls = '') => `<div class="logo ${cls}"><span>♛</span> FIVE CROWNS</div>`;
-const name = (id) => esc(byId(state, id)?.name ?? '?');
+const name = (id) => esc(byId(state, id)?.name ?? 'Someone');
+const kick = (p, text) => `<button class="x" title="Remove" data-emit="kick" data-arg="${esc(JSON.stringify({ playerId: p.id }))}" data-confirm="${esc(text)}">×</button>`;
 
 function lobbyView() {
   const n = state.players.length;
@@ -56,6 +57,7 @@ function tableView() {
       <div class="mini-join">${esc(info.joinUrl)}</div>
       <h3>Scores <small class="muted">lowest wins</small></h3>
       ${scoreGridHtml(state)}
+      ${state.waiting.length ? `<p class="joining muted">Joining next round: ${state.waiting.map((w) => `${esc(w.name)} ${kick(w, `Remove ${w.name}?`)}`).join(', ')}</p>` : ''}
       <h3>Table talk</h3>
       <div class="log">${state.log.slice(-8).reverse().map((l) => `<div>${esc(l.text)}</div>`).join('')}</div>
       <button class="ghost" data-emit="newGame" data-confirm="Abandon this game and return to the lobby?">Back to lobby</button>
@@ -95,6 +97,7 @@ function panel(p) {
   return `<article class="${classes.join(' ')}">
     <div class="head">
       <h2>${esc(p.name)}</h2>
+      ${kick(p, `Remove ${p.name} from the game?`)}
       ${badges(state, p)} ${status}
       <span class="hs">${p.score}</span>
     </div>

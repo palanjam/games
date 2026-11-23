@@ -44,8 +44,29 @@ If someone drops out, the table screen can bid and play for them.
 - The last completed trick stays in the view (`lastTrick`) so phones can see
   who won it; after the last trick of a round it stays visible on the
   round-over / game-over screen.
-- A player who leaves mid-round is not supported; players can only be
-  removed between rounds.
+- Boots and leaves: the table screen's `×` (with a confirm) or a phone's
+  Leave removes a player at once, even mid-round. The round carries on
+  without them: their hand and tricks leave play and their score is dropped.
+  A card they had in the current trick is removed from it, and the trick
+  completes when every remaining player has played. If it was their turn
+  (to bid, lead or play) it passes to the next seat. If they were the dealer,
+  the previous seat becomes the dealer for the rest of the round (bids last,
+  the hook applies to them only if they have not yet bid) and next round's
+  dealer is the player who would have dealt after them. With fewer than 2
+  players left the round is abandoned: nobody scores, everyone gets a "–"
+  round entry, and the game goes to round over (or game over on the last
+  round). A round can run on with 2 players, but the next round needs 3
+  seated or waiting.
+- Late joiners: anyone can join from their phone in any phase. They wait
+  ("Joining next round" on the table) and are seated at the end of the seat
+  order when the next round starts, at the lowest current score, with "–"
+  for the rounds already played. Capacity (7) counts waiting players. A
+  round's hand size is the scheduled size capped at floor(51 / players) for
+  the table at that round's deal, so late joiners can shrink a big hand;
+  the schedule itself is fixed at the start. Leaving to the lobby seats
+  waiting players at 0.
+- Removed players' last-trick cards are dropped from the "last trick"
+  display; if they won it, the last trick is cleared.
 
 ## How the engine works
 

@@ -361,9 +361,8 @@ test('ties share the win', () => {
   assert.match(h.log.at(-1).text, /A & C win with 10/);
 });
 
-test('removePlayer: not mid-round; reset returns to the lobby with zeroed scores', () => {
+test('removePlayer: reset returns to the lobby with zeroed scores', () => {
   const g = setup({ pattern: 'up' });
-  assert.throws(() => g.removePlayer('B'), GameError);
   finishRound(g);
   g.reset();
   assert.equal(g.phase, 'lobby');
@@ -478,4 +477,333 @@ test('descriptor: registered shape and actions drive a game', () => {
   const cardId = g.player(leader).hand[0].id;
   ohHell.actions.play(g, { cardId }, me(leader));
   assert.equal(g.trick.length, 1);
+});
+
+// ---- manage players: late joiners and boots -----------------------------
+
+// Play (or bid) for whoever's turn it is until the round ends.
+function finishWithAuto(g) {
+  let steps = 0;
+  while (g.phase === 'playing') {
+    const p = g.player(g.turnId);
+    if (g.stage === 'bid') g.bid(p.id, g.forbiddenBid === 0 ? 1 : 0);
+    else g.play(p.id, autoCard(g, p).id);
+    assert.ok(++steps < 500, 'stuck');
+  }
+}
+
+const noHiddenLeak = (g, viewer, hand) => {
+  const ids = new Set(hand.map((c) => c.id));
+  assert.ok(!cardsIn(g.view(viewer)).some((c) => ids.has(c.id)), 'removed hand leaked into a view');
+  assert.ok(!g.log.some((l) => hand.some((c) => l.text.includes(cardName(c)) && !/plays|Trump/.test(l.text))), 'leaked in log');
+};
+
+test('late join: goes to waiting mid-round, shows in the view, counts toward capacity', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D', 'E', 'F'], pattern: 'up' });
+  g.addPlayer('G', 'Gus');
+  assert.equal(g.players.length, 6);
+  assert.deepEqual(g.view(null).waiting, [{ id: 'G', name: 'Gus' }]);
+  assert.ok(g.isWaiting('G'));
+  assert.ok(!g.isWaiting('A'));
+  assert.equal(g.log.at(-1).text, 'Gus will join next round.');
+  assert.throws(() => g.addPlayer('H', 'Hal'), /full/);
+  assert.throws(() => g.addPlayer('I', '  '), GameError);
+  assert.deepEqual(g.view('G').waiting.map((w) => w.id), ['G']);
+});
+
+test('late join: seated at the next round level with last place, null-padded roundScores', () => {
+  const g = setup({ pattern: 'up' });
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+  g.player('A').score = 15;
+  g.player('B').score = 12;
+  g.player('C').score = 20;
+  g.addPlayer('D', 'Dee');
+  assert.equal(g.phase, 'roundOver');
+  g.nextRound();
+  assert.deepEqual(g.players.map((p) => p.id), ['A', 'B', 'C', 'D']);
+  const d = g.player('D');
+  assert.equal(d.score, 12);
+  assert.deepEqual(d.roundScores, [null]);
+  assert.equal(d.hand.length, 2);
+  assert.deepEqual(g.waiting, []);
+  assert.ok(g.log.some((l) => l.text === 'Dee joins with 12 points.'));
+  assert.equal(g.view(null).players[3].roundScores[0], null);
+  finishWithAuto(g);
+  assert.equal(g.player('D').roundScores.length, 2);
+});
+
+test('late join: nextRound counts waiting players, and the hand size is capped for a bigger table', () => {
+  const g = setup({ players: ['A', 'B', 'C'], pattern: 'down' });
+  assert.equal(g.handSize, 10);
+  finishWithAuto(g);
+  for (const [id, n] of [['D', 'D'], ['E', 'E'], ['F', 'F'], ['G', 'G']]) g.addPlayer(id, n);
+  g.nextRound();
+  assert.equal(g.players.length, 7);
+  assert.equal(g.handSize, 7); // schedule said 9; floor(51 / 7) caps it
+  assert.ok(g.players.every((p) => p.hand.length === 7));
+  assert.ok(g.trumpCard);
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+test('late join: a table of two plus a waiting player can still start the next round', () => {
+  const g = setup({ pattern: 'up' });
+  g.removePlayer('C'); // 2 left: the round carries on
+  assert.equal(g.phase, 'playing');
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+  assert.throws(() => g.nextRound(), /at least 3/);
+  g.addPlayer('D', 'Dee');
+  g.nextRound();
+  assert.equal(g.players.length, 3);
+});
+
+test('late join: reset seats waiting players at zero', () => {
+  const g = setup({ pattern: 'up' });
+  g.addPlayer('D', 'Dee');
+  g.reset();
+  assert.equal(g.phase, 'lobby');
+  assert.deepEqual(g.waiting, []);
+  assert.deepEqual(g.players.map((p) => p.id), ['A', 'B', 'C', 'D']);
+  assert.ok(g.players.every((p) => p.score === 0 && p.roundScores.length === 0));
+});
+
+test('remove a waiting player: nothing else changes', () => {
+  const g = setup({ pattern: 'down' });
+  g.addPlayer('D', 'Dee');
+  const turn = g.turnId;
+  g.removePlayer('D');
+  assert.deepEqual(g.waiting, []);
+  assert.equal(g.players.length, 3);
+  assert.equal(g.turnId, turn);
+  assert.equal(g.phase, 'playing');
+});
+
+test('remove during bidding: their turn passes on, their bid is dropped, hand stays hidden', () => {
+  const g = setup({ pattern: 'down' }); // B bids first, then C, A (dealer) last
+  const hand = [...g.player('B').hand];
+  g.removePlayer('B');
+  assert.deepEqual(g.players.map((p) => p.id), ['A', 'C']);
+  assert.equal(g.turnId, 'C');
+  assert.equal(g.dealer.id, 'A');
+  noHiddenLeak(g, null, hand);
+  noHiddenLeak(g, 'A', hand);
+  g.bid('C', 3);
+  g.bid('A', 4);
+  assert.equal(g.stage, 'play');
+  assert.equal(g.turnId, 'C');
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.player('C').roundScores.length, 1);
+});
+
+test('remove during bidding: not their turn; a bid they made leaves the total', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' }); // dealer A; order B C D A
+  g.bid('B', 4);
+  g.bid('C', 3);
+  assert.equal(g.bidTotal, 7);
+  g.removePlayer('B');
+  assert.equal(g.bidTotal, 3);
+  assert.equal(g.turnId, 'D');
+  g.bid('D', 1);
+  assert.equal(g.forbiddenBid, 6);
+  g.bid('A', 0);
+  assert.equal(g.stage, 'play');
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+test('remove the dealer during bidding: the previous seat bids last and the hook applies to them', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' }); // dealer A; order B C D A
+  g.bid('B', 2);
+  g.removePlayer('A');
+  assert.deepEqual(g.players.map((p) => p.id), ['B', 'C', 'D']);
+  assert.equal(g.dealer.id, 'D');
+  assert.equal(g.turnId, 'C');
+  g.bid('C', 2);
+  assert.equal(g.turnId, 'D');
+  assert.equal(g.forbiddenBid, 6);
+  assert.throws(() => g.bid('D', 6), GameError);
+  g.bid('D', 0);
+  assert.equal(g.stage, 'play');
+  assert.equal(g.turnId, 'B'); // leads: the seat after the dealer
+  finishWithAuto(g);
+  // next round's dealer is the player who would have dealt after A
+  g.nextRound();
+  assert.equal(g.dealer.id, 'B');
+});
+
+test('remove the dealer after the others bid and when it is the dealer\'s own bid: play starts, no hook re-check', () => {
+  const g = setup({ pattern: 'down' }); // order B C A
+  g.bid('B', 5);
+  g.bid('C', 5);
+  assert.equal(g.turnId, 'A');
+  g.removePlayer('A');
+  assert.equal(g.stage, 'play');
+  assert.equal(g.dealer.id, 'C');
+  assert.equal(g.turnId, 'B');
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+test('remove the previous seat while the dealer has already bid: no hook re-check', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' }); // dealer A; order B C D A
+  g.bid('B', 1);
+  g.bid('C', 1);
+  g.bid('D', 1);
+  g.removePlayer('A'); // dealer gone, all remaining have bid
+  assert.equal(g.stage, 'play');
+  assert.equal(g.forbiddenBid, null);
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+function playing(g, bids = { B: 0, C: 0, A: 0 }) {
+  bidAll(g, bids);
+}
+
+test('remove during play: on their turn, the lead passes to the next seat', () => {
+  const g = round2({ B: 'A♣ 3♥', C: '5♣ 6♠', A: '2♣ 4♠' }, '8♦', { B: 1, C: 0, A: 0 });
+  assert.equal(g.turnId, 'B');
+  const hand = [...g.player('B').hand];
+  g.removePlayer('B');
+  assert.equal(g.turnId, 'C');
+  assert.equal(g.stage, 'play');
+  noHiddenLeak(g, null, hand);
+  noHiddenLeak(g, 'C', hand);
+  play(g, 'C', '5♣');
+  play(g, 'A', '2♣');
+  assert.equal(g.lastTrick.winnerId, 'C');
+  play(g, 'C', '6♠');
+  play(g, 'A', '4♠');
+  assert.equal(g.phase, 'gameOver');
+  assert.equal(g.player('C').roundScores[0].tricks, 2);
+});
+
+test('remove during play: their card leaves the trick and the trick completes without them', () => {
+  const g = round2({ B: 'A♣ 3♥', C: '5♣ 6♠', A: '2♣ 4♠' }, '8♦', { B: 1, C: 0, A: 0 });
+  play(g, 'B', 'A♣');
+  assert.equal(g.trick.length, 1);
+  g.removePlayer('B');
+  assert.equal(g.trick.length, 0);
+  assert.equal(g.turnId, 'C'); // still C's turn
+  play(g, 'C', '5♣');
+  play(g, 'A', '2♣');
+  assert.equal(g.lastTrick.plays.length, 2);
+  assert.ok(!g.view(null).lastTrick.plays.some((x) => x.playerId === 'B'));
+  assert.equal(g.lastTrick.winnerId, 'C');
+  play(g, 'C', '6♠');
+  play(g, 'A', '4♠');
+  assert.equal(g.phase, 'gameOver');
+});
+
+test('remove during play: removing the last player due to play completes the trick', () => {
+  const g = round2({ B: 'A♣ 3♥', C: '5♣ 6♠', A: '2♣ 4♠' }, '8♦', { B: 1, C: 0, A: 0 });
+  play(g, 'B', 'A♣');
+  play(g, 'C', '5♣');
+  assert.equal(g.turnId, 'A');
+  g.removePlayer('A');
+  assert.equal(g.lastTrick.winnerId, 'B');
+  assert.equal(g.player('B').tricks, 1);
+  assert.equal(g.turnId, 'B');
+  play(g, 'B', '3♥');
+  play(g, 'C', '6♠');
+  assert.equal(g.phase, 'gameOver');
+});
+
+test('remove during play: removing the dealer keeps the deal rotation', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' }); // dealer A
+  const hand = [...g.player('A').hand];
+  playing(g, { B: 1, C: 1, D: 1, A: 0 });
+  assert.equal(g.turnId, 'B');
+  g.removePlayer('A');
+  assert.equal(g.dealer.id, 'D');
+  noHiddenLeak(g, 'B', hand);
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+  g.nextRound();
+  assert.equal(g.dealer.id, 'B');
+});
+
+test('remove during play: a seat before the dealer shifts the dealer index', () => {
+  const g = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' });
+  g.removePlayer('B');
+  g.removePlayer('C');
+  assert.equal(g.dealer.id, 'A');
+  assert.equal(g.players.length, 2);
+  const h = setup({ players: ['A', 'B', 'C', 'D'], pattern: 'down' });
+  h.removePlayer('D');
+  assert.equal(h.dealer.id, 'A');
+  finishWithAuto(h);
+  assert.equal(h.phase, 'roundOver');
+});
+
+test('remove down to one player abandons the round with null scores', () => {
+  const g = setup({ pattern: 'down' });
+  g.removePlayer('A');
+  assert.equal(g.phase, 'playing');
+  g.removePlayer('B');
+  assert.equal(g.phase, 'roundOver');
+  assert.equal(g.turnId, null);
+  assert.deepEqual(g.player('C').roundScores, [null]);
+  assert.equal(g.player('C').score, 0);
+  assert.equal(g.log.at(-1).text, 'Round 1 was abandoned: not enough players.');
+  assert.deepEqual(g.view(null).players[0].roundScores, [null]);
+});
+
+test('abandoning the last round ends the game on current scores', () => {
+  const g = setup({ pattern: 'up', players: ['A', 'B', 'C'] });
+  finishWithAuto(g); // round 1 of 10
+  g.round = g.sizes.length - 1;
+  g.nextRound();
+  assert.equal(g.round, g.sizes.length);
+  g.player('C').score = 7;
+  g.removePlayer('A');
+  g.removePlayer('B');
+  assert.equal(g.phase, 'gameOver');
+  assert.deepEqual(g.winners, ['C']);
+});
+
+test('remove after the round or game: as before', () => {
+  const g = setup({ pattern: 'up', players: ['A', 'B', 'C', 'D'] });
+  finishWithAuto(g);
+  g.removePlayer('B');
+  assert.equal(g.players.length, 3);
+  assert.equal(g.phase, 'roundOver');
+  g.nextRound();
+  finishWithAuto(g);
+  assert.equal(g.phase, 'roundOver');
+});
+
+test('random mid-round boots always let the round finish, with no leaked hands', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const rng = seeded(seed);
+    const g = new Game({ rng });
+    for (const n of 'ABCDE') g.addPlayer(n, n);
+    g.setPattern('down');
+    g.start();
+    const gone = [];
+    let steps = 0;
+    while (g.phase === 'playing') {
+      if (g.players.length > 2 && rng() < 0.08) {
+        const v = g.players[Math.floor(rng() * g.players.length)];
+        gone.push([...v.hand]);
+        g.removePlayer(v.id);
+        continue;
+      }
+      if (g.phase !== 'playing') break;
+      const p = g.player(g.turnId);
+      if (g.stage === 'bid') g.bid(p.id, g.forbiddenBid === 0 ? 1 : 0);
+      else g.play(p.id, autoCard(g, p).id);
+      assert.ok(++steps < 500, `stuck (seed ${seed})`);
+    }
+    assert.equal(g.phase, 'roundOver', `seed ${seed}`);
+    for (const hand of gone) {
+      const ids = new Set(hand.map((c) => c.id));
+      const played = new Set(g.log.map((l) => l.text));
+      assert.ok(!cardsIn(g.view('A')).some((c) => ids.has(c.id) && !g.trick.some((t) => t.card.id === c.id) && !g.lastTrick?.plays.some((t) => t.card.id === c.id) && c.id !== g.trumpCard.id));
+      assert.ok(played);
+    }
+  }
 });

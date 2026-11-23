@@ -28,6 +28,27 @@ empty, each player scores the value of all their sets.
 If someone drops out, the table screen can act for them (give up a battle,
 or discard their lowest card).
 
+## Boot and late join
+
+- **Booting**: the table screen has a remove button (with a confirm) on each
+  player, in any phase. Removal is immediate, also mid-round: their hand and
+  sets leave play and the round carries on. If it was their turn, play
+  passes to the next seated player holding cards. If they were the dealer,
+  the next round is dealt by whoever would have dealt after them (nobody is
+  shown as dealer until then).
+- **A battle involving the removed player is cancelled**: their played cards
+  leave play, cards played by the remaining side go to the discard pile, and
+  the contested set stays with its owner (it leaves with them if they were
+  the defender). If the attacker remains, their turn ends as after any
+  battle (they draw up, and a defender who spent cards draws up too); if the
+  attacker was removed, the turn passes from their old seat.
+- **Fewer than two players left** abandons the round: nobody scores, and the
+  game goes to Round over (Quick mode ends, with the highest total winning).
+- **Late join**: anyone can join from their phone at any time. They wait,
+  and are seated at the end of the table when the next round starts, with
+  the lowest current total ("level with last place"). Back to the lobby seats
+  them at $0. The table counts waiting players toward the six-player cap.
+
 ## Card values
 
 The rulebook gives the card counts but not the dollar values, so these are
@@ -46,7 +67,8 @@ turn) and the 2–3 player draft-pile variant.
 - **`engine.js`**: a pure state machine. A battle is the only multi-step
   action: it holds the turn, alternating between challenger and defender,
   and a side that holds no matching card loses at once. `view(playerId)`
-  includes only that player's own hand; others see hand sizes.
+  includes only that player's own hand; others see hand sizes, plus `waiting`
+  (late joiners).
 - **`index.js`**: the socket actions (`setMode`, `pair`, `pairDiscard`,
   `discard`, `challenge`, `respond`, `fold`, `nextRound`, `autoplay`).
 - **`public/`**: phone page (`play.html`, `player.js`) and table screen

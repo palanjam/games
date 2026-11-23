@@ -96,3 +96,8 @@ button.big { font-size: 1.8rem; padding: 1rem 3rem; }
 .panel .stack { flex-wrap: nowrap; min-width: 0; column-gap: 0.4rem; }
 .panel .set:not(.top) { flex: 0 1 auto; min-width: 0.8rem; overflow: hidden; }
 .panel .set.top { flex: none; }
+
+/* Remove buttons while a game is running */
+.panel .x, .wchip .x { background: transparent; color: var(--muted); padding: 0 0.4rem; font-size: 1.4rem; line-height: 1; }
+.joining { margin: 0.6rem 0; font-size: 1.1rem; }
+.wchip { display: inline-flex; align-items: center; background: var(--panel); border-radius: 999px; padding: 0.1rem 0.3rem 0.1rem 0.8rem; font-weight: 700; color: var(--text, inherit); }

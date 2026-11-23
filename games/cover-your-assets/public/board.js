@@ -55,11 +55,20 @@ function tableView() {
       <div class="mini-join">${info.qrSvg}<span>${esc(info.joinUrl)}</span></div>
       <h3>${state.mode === 'quick' ? 'Round scores' : `Scores <small class="muted">to ${dollars(state.targetScore)}</small>`}</h3>
       <ol class="scores">${scoreRows()}</ol>
+      ${waitingLine()}
       <h3>Table talk</h3>
       <div class="log">${state.log.slice(-12).reverse().map((l) => `<div>${esc(l.text)}</div>`).join('')}</div>
       <button class="ghost" data-emit="newGame" data-confirm="Abandon this game and return to the lobby?">Back to lobby</button>
     </aside>
   </div>`;
+}
+
+// Remove button for a seated or waiting player, with a confirm so nobody gets booted by accident.
+const kick = (p, text) => `<button class="x" title="Remove" data-emit="kick" data-arg="${esc(JSON.stringify({ playerId: p.id }))}" data-confirm="${esc(text)}">×</button>`;
+
+function waitingLine() {
+  if (!state.waiting?.length) return '';
+  return `<p class="joining muted">Joining next round: ${state.waiting.map((w) => `<span class="wchip">${esc(w.name)} ${kick(w, `Remove ${w.name}?`)}</span>`).join(' ')}</p>`;
 }
 
 const name = (id) => esc(byId(state, id)?.name ?? '?');
@@ -110,6 +119,7 @@ function panel(p) {
       ${badges(state, p)}
       <span class="spacer"></span>
       <span class="hs">${dollars(p.stackValue)}</span>
+      ${kick(p, `Remove ${p.name} from the game?`)}
     </div>
     <div class="body">${stackHtml(p.stack)}</div>
     <div class="foot"><b>${p.stack.length}</b> set${p.stack.length === 1 ? '' : 's'} · <b>${p.handCount}</b> in hand${state.mode === 'quick' ? '' : ` · Total <b>${dollars(p.score)}</b>`}</div>
